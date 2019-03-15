@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<project name="Arduino" default="build">
+<project name="Arduino" default="subprojects-build">
   <!--echo message="os.name = ${os.name}" /-->
   <!--echo message="os.arch = ${os.arch}" /-->
   <!--echo message="os.version = ${os.version}" /-->
