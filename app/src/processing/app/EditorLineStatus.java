@@ -132,6 +132,12 @@ public class EditorLineStatus extends JComponent {
   }
 
   public void setPort(String port) {
+    if (port != null && port.length() > 26) {
+      int pos = port.lastIndexOf("usb");
+      if (pos > 0) {
+        port = port.substring(pos);
+      }
+    }
     this.port = port;
   }
 

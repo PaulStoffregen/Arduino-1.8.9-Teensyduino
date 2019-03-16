@@ -30,6 +30,11 @@ import java.awt.*;
 import java.awt.event.ActionListener;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Rectangle2D;
+import java.io.File;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.InputStreamReader;
+import java.io.BufferedReader;
 
 import static processing.app.I18n.tr;
 
@@ -39,6 +44,13 @@ public class SerialPlotter extends AbstractMonitor {
   private JComboBox<String> serialRates;
   private Serial serial;
   private int serialRate, xCount;
+
+  private String teensyname=null;
+  private String openport=null;
+  Process program=null;
+  inputPlotterPipeListener listener=null;
+  errorPlotterPipeListener errors=null;
+  Thread shutdown=null;
 
   private ArrayList<Graph> graphs;
   private final static int BUFFER_CAPACITY = 500;
@@ -213,6 +225,21 @@ public class SerialPlotter extends AbstractMonitor {
   public SerialPlotter(BoardPort port) {
     super(port);
 
+    String protocol = port.getProtocol();
+    if (protocol != null && protocol.equalsIgnoreCase("Teensy")) {
+      String[] pieces = port.getLabel().trim().split("[\\(\\)]");
+      if (pieces.length > 2 && pieces[1].startsWith("Teensy")) {
+        teensyname = pieces[1];
+      } else {
+        teensyname = "Teensy";
+      }
+      disconnect();
+      serialRates.hide();
+      messageBuffer = new StringBuffer();
+      graphs = new ArrayList<>();
+      return; // end of Teensy's ctor
+    }
+
     serialRate = PreferencesData.getInteger("serial.debug_rate");
     serialRates.setSelectedItem(serialRate + " " + tr("baud"));
     onSerialRateChange(event -> {
@@ -302,17 +329,110 @@ public class SerialPlotter extends AbstractMonitor {
   public void open() throws Exception {
     super.open();
 
+    String protocol = getBoardPort().getProtocol();
+    if (protocol != null && protocol.equalsIgnoreCase("Teensy")) {
+      String port = getBoardPort().getAddress();
+      if (openport != null && port.equals(openport) && program != null
+        && listener != null && listener.isAlive() && errors != null && errors.isAlive()) {
+          return; // correct port is already open
+      }
+      if (program != null || listener != null || errors != null) {
+        close(); // another port was already open, close first
+      }
+      String[] cmdline;
+      String command = BaseNoGui.getHardwarePath() + File.separator +
+        "tools" + File.separator + "teensy_serialmon";
+      cmdline = new String[2];
+      cmdline[0] = command;
+      cmdline[1] = port;
+      try {
+        program = Runtime.getRuntime().exec(cmdline);
+      } catch (Exception e1) {
+        System.err.println("Unable to run teensy_serialmon");
+        program = null;
+      }
+      if (program != null) {
+        openport = new String(port);
+        listener = new inputPlotterPipeListener();
+        listener.input = program.getInputStream();
+        listener.output = this;
+        listener.start();
+        errors = new errorPlotterPipeListener();
+        errors.input = program.getErrorStream();
+        errors.output = this;
+        errors.start();
+        if (shutdown != null) Runtime.getRuntime().removeShutdownHook(shutdown);
+        shutdown = new Thread() {
+          public void run() {
+            if (program != null) {
+              program.destroy();
+              program = null;
+            }
+            if (listener != null) {
+              if (listener.isAlive()) listener.interrupt();
+              listener = null;
+            }
+            if (errors != null) {
+              if (errors.isAlive()) errors.interrupt();
+              errors = null;
+            }
+          }
+        };
+        Runtime.getRuntime().addShutdownHook(shutdown);
+      } else {
+        super.close();
+      }
+      return; // end of Teensy's open
+    }
+
     if (serial != null) return;
 
-    serial = new Serial(getBoardPort().getAddress(), serialRate) {
-      @Override
-      protected void message(char buff[], int n) {
-        addToUpdateBuffer(buff, n);
+    int attempt = 1;
+    while (true) {
+      try {
+        serial = new Serial(getBoardPort().getAddress(), serialRate) {
+          @Override
+          protected void message(char buff[], int n) {
+            addToUpdateBuffer(buff, n);
+          }
+        };
+        break;
+      } catch (SerialException e) {
+        if (++attempt > 20) throw e; // try up to 2 seconds to open port
       }
-    };
+      try {
+        Thread.sleep(100);
+      } catch (Exception e) {
+      }
+    }
   }
 
   public void close() throws Exception {
+    String protocol = getBoardPort().getProtocol();
+    if (protocol != null && protocol.equalsIgnoreCase("Teensy")) {
+      //System.out.println("close Teensy");
+      if (program != null) {
+        program.destroy();
+        program = null;
+      }
+      if (listener != null) {
+        if (listener.isAlive()) listener.interrupt();
+        listener = null;
+      }
+      if (errors != null) {
+        if (errors.isAlive()) errors.interrupt();
+        errors = null;
+      }
+      if (shutdown != null) {
+        Runtime.getRuntime().removeShutdownHook(shutdown);
+        shutdown = null;
+      }
+      openport = null;
+      setTitle("[offline] (" + teensyname + ")");
+      super.close();
+      return; // end of Teensy's close
+    }
+
     if (serial != null) {
       super.close();
       int[] location = getPlacement();
@@ -322,4 +442,68 @@ public class SerialPlotter extends AbstractMonitor {
       serial = null;
     }
   }
+
+  public void opened(String device, String usbtype) {
+    //System.out.println("opened Teensy");
+    setTitle(device + " (" + teensyname + ") " + usbtype);
+    graphs = new ArrayList<>();  // clear old waveform
+  }
+
+  public void disconnect() {
+    //System.out.println("disconnect Teensy");
+    setTitle("[offline] (" + teensyname + ")");
+    if (messageBuffer != null) messageBuffer.setLength(0);
+  }
 }
+
+class inputPlotterPipeListener extends Thread {
+        InputStream input;
+        SerialPlotter output;
+
+        public void run() {
+                byte[] buffer = new byte[65536];
+                try {
+                        while (true) {
+                                int num = input.read(buffer);
+                                if (num <= 0) break;
+                                //System.out.println("inputPlotterPipeListener, num=" + num);
+                                String text = new String(buffer, 0, num);
+                                //System.out.println("inputPlotterPipeListener, text=" + text);
+                                char[] chars = text.toCharArray();
+                                output.addToUpdateBuffer(chars, chars.length);
+                                //System.out.println("inputPlotterPipeListener, out=" + chars.length);
+                        }
+                } catch (Exception e) { }
+                //System.out.println("inputPlotterPipeListener thread exit");
+        }
+
+}
+
+class errorPlotterPipeListener extends Thread {
+        InputStream input;
+        SerialPlotter output;
+
+        public void run() {
+                InputStreamReader reader = new InputStreamReader(input);
+                BufferedReader in = new BufferedReader(reader);
+                try {
+                        while (true) {
+                                String line = in.readLine();
+                                //System.err.print("line: ");
+                                if (line.startsWith("Opened ")) {
+                                        String parts[] = line.trim().split(" ", 3);
+                                        if (parts.length == 3) {
+                                                output.opened(parts[1], parts[2]);
+                                        }
+                                } else if (line.startsWith("Disconnect ")) {
+                                        output.disconnect();
+                                } else {
+                                        System.err.println(line);
+                                }
+                        }
+                } catch (Exception e) { }
+                //System.out.println("errorPlotterPipeListener thread exit");
+        }
+
+}
+

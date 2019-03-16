@@ -1070,6 +1070,17 @@ public class Editor extends JFrame implements RunnerListener {
 
     List<BoardPort> ports = Base.getDiscoveryManager().discovery();
 
+    if (BaseNoGui.isTeensyduino()) {
+      if (BaseNoGui.getBoardPreferences().get("fake_serial") != null) {
+        // When Teensy set for non-serial, add "(emulated serial)" to the Ports menu
+        BoardPort emu = new BoardPort();
+        emu.setProtocol("serial");
+        emu.setAddress("fake serial");
+        emu.setLabel("(emulated serial)");
+        ports.add(emu);
+      }
+    }
+
     ports = platform.filterPorts(ports, PreferencesData.getBoolean("serial.ports.showall"));
 
     ports.stream() //
@@ -2110,6 +2121,18 @@ public class Editor extends JFrame implements RunnerListener {
   private void resumeOrCloseSerialMonitor() {
     // Return the serial monitor window to its initial state
     if (serialMonitor != null) {
+      if (BaseNoGui.isTeensyduino()) {
+        BoardPort bp = new BoardPort();
+        String portname = PreferencesData.get("serial.port");
+        if (portname != null) {
+          bp.setAddress(portname);
+          try {
+            serialMonitor.resume(bp);
+          } catch (Exception e) {
+          }
+        }
+        return;
+      }
       BoardPort boardPort = BaseNoGui.getDiscoveryManager().find(PreferencesData.get("serial.port"));
       long sleptFor = 0;
       while (boardPort == null && sleptFor < MAX_TIME_AWAITING_FOR_RESUMING_SERIAL_MONITOR) {
@@ -2204,12 +2227,39 @@ public class Editor extends JFrame implements RunnerListener {
 
     BoardPort port = Base.getDiscoveryManager().find(PreferencesData.get("serial.port"));
 
+    if (BaseNoGui.isTeensyduino()) {
+      if (port != null) {
+        String protocol = port.getProtocol();
+        if (protocol != null && protocol.equals("serial")) {
+          port.setProtocol("teensy"); // causes TeensyMonitor to be used
+        }
+      } else {
+        String pref = PreferencesData.get("serial.port");
+       if (pref != null && pref.equals("fake serial")) {
+          // When "(emulated serial)" is selected, Arduino's DiscoveryManager
+          // can't find it and fill in the BoardPort info.  Even though we
+          // created one to put into the menu, simplest solution is to create
+          // another temporary BoardPort only for the sake of starting the
+          // serial monitor
+          port = new BoardPort();
+          port.setProtocol("teensy");
+          port.setAddress("fake serial");
+          port.setLabel("(emulated serial)");
+        }
+      }
+    }
     if (port == null) {
       statusError(I18n.format(tr("Board at {0} is not available"), PreferencesData.get("serial.port")));
       return;
     }
 
     serialMonitor = new MonitorFactory().newMonitor(port);
+
+    if (BaseNoGui.isTeensyduino()) {
+      if (port.getProtocol().equals("teensy")) {
+        port.setProtocol("serial"); // undo the change from above
+      }
+    }
 
     if (serialMonitor == null) {
       String board = port.getPrefs().get("board");
@@ -2599,6 +2649,19 @@ public class Editor extends JFrame implements RunnerListener {
       lineStatus.setBoardName("-");
     lineStatus.setPort(PreferencesData.get("serial.port"));
     lineStatus.repaint();
+    if (BaseNoGui.isTeensyduino()) {
+      if (serialMonitor != null && !((serialMonitor instanceof TeensyMonitor) || (serialMonitor instanceof TeensyPipeMonitor))) {
+        if (!(serialMonitor.isClosed())) {
+          try {
+            serialMonitor.close();
+          } catch (Exception e) {
+          }
+        }
+        serialMonitor.setVisible(false);
+        serialMonitor.dispose();
+        serialMonitor = null;
+      }
+    }
   }
 
   public void addCompilerProgressListener(CompilerProgressListener listener){

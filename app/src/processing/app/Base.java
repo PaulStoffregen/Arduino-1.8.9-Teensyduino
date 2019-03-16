@@ -1830,8 +1830,13 @@ public class Base {
 
         Font f = new Font("SansSerif", Font.PLAIN, Theme.scale(11));
         g.setFont(f);
-        g.setColor(new Color(0,151,156));
-        g.drawString(BaseNoGui.VERSION_NAME_LONG, Theme.scale(33), Theme.scale(20));
+        g.setColor(Color.black);
+        g.drawString("Arduino " + BaseNoGui.VERSION_NAME_LONG, Theme.scale(28), Theme.scale(16));
+        if (BaseNoGui.teensyduino_version != null) {
+          FontMetrics m = g.getFontMetrics(g.getFont());
+          String td = "Teensyduino " + BaseNoGui.teensyduino_version;
+          g.drawString(td, Theme.scale(448 - m.stringWidth(td)), Theme.scale(16));
+        }
       }
     };
     window.addMouseListener(new MouseAdapter() {
