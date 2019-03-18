@@ -1099,6 +1099,11 @@ public class Editor extends JFrame implements RunnerListener {
       String pr2 = port2.getProtocol();
       int prIdx1 = PROTOCOLS_ORDER.contains(pr1) ? PROTOCOLS_ORDER.indexOf(pr1) : 999;
       int prIdx2 = PROTOCOLS_ORDER.contains(pr2) ? PROTOCOLS_ORDER.indexOf(pr2) : 999;
+      if (BaseNoGui.isTeensyduino()) {
+        // when Teensy selected in Boards menu, show Teensy ports first in Port menu
+        if (pr1.equals("Teensy")) prIdx1 = -1;
+        if (pr2.equals("Teensy")) prIdx2 = -1;
+      }
       int r = prIdx1 - prIdx2;
       if (r != 0)
         return r;
