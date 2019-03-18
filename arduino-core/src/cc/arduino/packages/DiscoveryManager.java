@@ -68,8 +68,8 @@ public class DiscoveryManager {
         PreferencesMap prefs = platform.getPreferences().subTree("discovery");
         PreferencesMap pathPrefs = new PreferencesMap();
         File platformFolder = platform.getFolder();
-        pathPrefs.put("discovery.platform.path", platformFolder.getAbsolutePath());
-        pathPrefs.put("discovery.package.path", platformFolder.getParentFile().getAbsolutePath());
+        pathPrefs.put("runtime.platform.path", platformFolder.getAbsolutePath());
+        pathPrefs.put("runtime.hardware.path", platformFolder.getParentFile().getAbsolutePath());
 
         for (String discoveryName : prefs.firstLevelMap().keySet()) {
           PreferencesMap discoveryPrefs = prefs.subTree(discoveryName);
