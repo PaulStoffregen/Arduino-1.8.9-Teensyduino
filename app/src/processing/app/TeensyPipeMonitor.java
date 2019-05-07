@@ -27,6 +27,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.InputStreamReader;
 import java.io.BufferedReader;
+import java.nio.charset.Charset;
+import java.nio.charset.CharsetDecoder;
 import java.util.*;
 import static processing.app.I18n.tr;
 
@@ -166,22 +168,18 @@ class inputPipeListener extends Thread {
 	TeensyPipeMonitor output;
 
 	public void run() {
-		byte[] buffer = new byte[65536];
+		char[] buffer = new char[65536];
+		CharsetDecoder decoder = Charset.forName("UTF-8").newDecoder();
+		BufferedReader reader = new BufferedReader(new InputStreamReader(input, decoder));
 		try {
 			while (true) {
-				int num = input.read(buffer);
-				if (num <= 0) break;
+				int num = reader.read(buffer, 0, buffer.length);
 				//System.out.println("inputPipeListener, num=" + num);
-				String text = new String(buffer, 0, num);
-				//System.out.println("inputPipeListener, text=" + text);
-				char[] chars = text.toCharArray();
-				output.addToUpdateBuffer(chars, chars.length);
-				//System.out.println("inputPipeListener, out=" + chars.length);
+				output.addToUpdateBuffer(buffer, num);
 			}
 		} catch (Exception e) { }
-		// System.out.println("inputPipeListener thread exit");
+		System.out.println("inputPipeListener thread exit");
 	}
-
 }
 
 class errorPipeListener extends Thread {
