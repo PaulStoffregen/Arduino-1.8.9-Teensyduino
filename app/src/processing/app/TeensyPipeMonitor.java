@@ -178,7 +178,7 @@ class inputPipeListener extends Thread {
 				output.addToUpdateBuffer(buffer, num);
 			}
 		} catch (Exception e) { }
-		System.out.println("inputPipeListener thread exit");
+		// System.out.println("inputPipeListener thread exit");
 	}
 }
 
