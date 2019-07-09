@@ -29,6 +29,7 @@ import java.io.InputStreamReader;
 import java.io.BufferedReader;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
+import java.nio.charset.CodingErrorAction;
 import java.util.*;
 import static processing.app.I18n.tr;
 
@@ -169,15 +170,28 @@ class inputPipeListener extends Thread {
 
 	public void run() {
 		char[] buffer = new char[65536];
-		CharsetDecoder decoder = Charset.forName("UTF-8").newDecoder();
-		BufferedReader reader = new BufferedReader(new InputStreamReader(input, decoder));
+		// UTF8 in Arduino's strings seems to get displayed correctly without this, but why?
+		//CharsetDecoder decoder = Charset.forName("UTF-8").newDecoder();
+		//decoder.onMalformedInput(CodingErrorAction.REPLACE);
+		//decoder.onUnmappableCharacter(CodingErrorAction.REPLACE);
+		//BufferedReader reader = new BufferedReader(new InputStreamReader(input, decoder));
+		BufferedReader reader = new BufferedReader(new InputStreamReader(input));
 		try {
 			while (true) {
 				int num = reader.read(buffer, 0, buffer.length);
+				if (num == -1) break;
 				//System.out.println("inputPipeListener, num=" + num);
 				output.addToUpdateBuffer(buffer, num);
 			}
-		} catch (Exception e) { }
+		} catch (Exception e) {
+			System.out.println("inputPipeListener exception: " + e);
+			e.printStackTrace();
+		}
+		try {
+			output.close();
+		} catch (Exception e) {
+			output.disconnect();
+		}
 		// System.out.println("inputPipeListener thread exit");
 	}
 }
