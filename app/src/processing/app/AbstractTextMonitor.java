@@ -55,6 +55,7 @@ public abstract class AbstractTextMonitor extends AbstractMonitor {
     mainPane.setLayout(new BorderLayout());
 
     textArea = new TextAreaFIFO(8_000_000);
+    //textArea = new TextAreaFIFO(200_000);
     textArea.setRows(16);
     textArea.setColumns(40);
     textArea.setEditable(false);

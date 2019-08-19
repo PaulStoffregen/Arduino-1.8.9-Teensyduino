@@ -22,26 +22,41 @@ package processing.app;
 
 import javax.swing.JTextArea;
 import javax.swing.SwingUtilities;
+import javax.swing.text.Document;
+import javax.swing.text.PlainDocument;
+import javax.swing.text.AttributeSet;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.text.BadLocationException;
 
-public class TextAreaFIFO extends JTextArea implements DocumentListener {
-  private int maxChars;
-  private int trimMaxChars;
 
-  private int updateCount; // limit how often we trim the document
+public class TextAreaFIFO extends JTextArea /*implements DocumentListener*/ {
+  //private int maxChars;
+  //private int trimMaxChars;
 
-  private boolean doTrim;
+  //private int updateCount; // limit how often we trim the document
+
+  //private boolean doTrim;
 
   public TextAreaFIFO(int max) {
-    maxChars = max;
-    trimMaxChars = max / 2;
-    updateCount = 0;
-    doTrim = true;
-    getDocument().addDocumentListener(this);
-  }
+    //maxChars = max;
+    //trimMaxChars = max / 2;
+    //updateCount = 0;
 
+
+	//Document originalDocument = getDocument();
+	//AttributeSet a = originalDocument.getDefaultRootElement().getAttributes();
+	//System.out.println("AttributeSet = " + a);
+
+    //Object val = getDocument().getProperty("i18n");
+    //System.out.println("i18n = " + val);
+
+    setDocument(new FifoDocument(max));
+    //setDocument(new PlainDocument());
+    //doTrim = true;
+    //getDocument().addDocumentListener(this);
+  }
+/*
   public void insertUpdate(DocumentEvent e) {
     if (++updateCount > 150 && doTrim) {
       updateCount = 0;
@@ -58,7 +73,8 @@ public class TextAreaFIFO extends JTextArea implements DocumentListener {
 
   public void changedUpdate(DocumentEvent e) {
   }
-
+*/
+/*
   public void trimDocument() {
     int len = 0;
     len = getDocument().getLength();
@@ -80,11 +96,21 @@ public class TextAreaFIFO extends JTextArea implements DocumentListener {
       append(s.substring(0, free));
     else
       append(s);
-    doTrim = false;
+    //doTrim = false;
   }
 
   public void appendTrim(String str) {
     append(str);
-    doTrim = true;
+    //doTrim = true;
+    if (++updateCount > 150) {
+      updateCount = 0;
+      SwingUtilities.invokeLater(new Runnable() {
+        public void run() {
+          trimDocument();
+        }
+      });
+    }
   }
+*/
+
 }
