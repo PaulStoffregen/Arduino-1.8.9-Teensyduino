@@ -124,7 +124,7 @@ public class FifoDocument implements Document
 
 	public void insertString(int offs, String s, AttributeSet a) throws BadLocationException {
 		int len = s.length();
-		System.out.println("Document: **INSERT** insertString, offset=" + offs + ", len=" + len);
+		println("Document: **INSERT** insertString, offset=" + offs + ", len=" + len);
 
 		if (len <= 0) return;
 
@@ -153,11 +153,11 @@ public class FifoDocument implements Document
 		}
 	}
 	public void remove(int offset, int len) throws BadLocationException {
-		System.out.println("Document: remove, offset=" + offset + ", len=" + len);
+		println("Document: remove, offset=" + offset + ", len=" + len);
 	}
 
 	public void getText(int offset, int length, Segment txt) throws BadLocationException {
-		System.out.println("Document: getText, offset=" + offset + ", len=" + length);
+		println("Document: getText, offset=" + offset + ", len=" + length);
 		if (length < 0 || offset < 0) {
 			throw new BadLocationException("negative input not allowed", 0);
 		}
@@ -168,11 +168,11 @@ public class FifoDocument implements Document
 		txt.offset = offset;
 		txt.count = length;
 		txt.setPartialReturn(false);
-		System.out.println("  text=" + txt.toString());
-		System.out.println();
+		println("  text=" + txt.toString());
+		println("");
 	}
 	public int getLength() {
-		System.out.println("Document: getLength -> " + char_head);
+		println("Document: getLength -> " + char_head);
 		return char_head;
 	}
 
@@ -210,25 +210,25 @@ public class FifoDocument implements Document
 ////////////////////////////////////////////////////////
 
 	public void addDocumentListener(DocumentListener listener) {
-		System.out.println("Document: addDocumentListener " + listener);
+		println("Document: addDocumentListener " + listener);
 		listeners.add(listener);
 	}
 	public void removeDocumentListener(DocumentListener listener) {
-		System.out.println("Document: removeDocumentListener");
+		println("Document: removeDocumentListener");
 		listeners.remove(listener);
 	}
 	public String getText(int offset, int length) throws BadLocationException {
-		System.out.println("Document: getText (String)");
+		println("Document: getText (String)");
 		return "";
 	}
 	public void addUndoableEditListener(UndoableEditListener listener) {
-		System.out.println("Document: addUndoableEditListener " + listener);
+		println("Document: addUndoableEditListener " + listener);
 	}
 	public void removeUndoableEditListener(UndoableEditListener listener) {
-		System.out.println("Document: removeUndoableEditListener");
+		println("Document: removeUndoableEditListener");
 	}
 	public Object getProperty(Object key) {
-		System.out.println("Document: getProperty " + key + "   " + key.getClass().getName());
+		println("Document: getProperty " + key + "   " + key.getClass().getName());
 		if (key.toString().equals("i18n")) return false;
 		if (key.toString().equals("tabSize")) return 4;
 
@@ -236,32 +236,42 @@ public class FifoDocument implements Document
 		//return false; // "i18n"
 	}
 	public void putProperty(Object key, Object value) {
-		System.out.println("Document: putProperty " + key + "  " + value);
+		println("Document: putProperty " + key + "  " + value);
 	}
 	public Position getStartPosition() {
-		System.out.println("Document: getStartPosition");
+		println("Document: getStartPosition");
 		return null;
 	}
 	public Position getEndPosition() {
-		System.out.println("Document: getEndPosition");
+		println("Document: getEndPosition");
 		return null;
 	}
 	public Position createPosition(int offs) throws BadLocationException {
-		System.out.println("Document: createPosition");
+		println("Document: createPosition");
 		return null;
 	}
 	public Element[] getRootElements() {
-		System.out.println("Document: getRootElements");
+		println("Document: getRootElements");
 		return null;
 	}
 	public Element getDefaultRootElement() {
-		System.out.println("Document: getDefaultRootElement");
+		println("Document: getDefaultRootElement");
 		return line_root;
 	}
 	public void render(Runnable r) {
-		System.out.println("Document: Runnable");
+		println("Document: Runnable");
 	}
 
+////////////////////////////////////////////////////////
+// Debug printing - everything goes through here
+////////////////////////////////////////////////////////
+
+	public void print(String str) {
+		System.out.print(str);
+	}
+	public void println(String str) {
+		System.out.println(str);
+	}
 
 }
 

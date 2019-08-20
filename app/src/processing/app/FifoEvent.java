@@ -28,23 +28,23 @@ public class FifoEvent implements DocumentEvent, DocumentEvent.ElementChange
 		line_length = length;
 	}
 	public int getOffset() {
-		System.out.println("Event: getOffset -> " + char_offset);
+		doc.println("Event: getOffset -> " + char_offset);
 		return char_offset;
 	}
 	public int getLength() {
-		System.out.println("Event: getLength -> " + char_length);
+		doc.println("Event: getLength -> " + char_length);
 		return char_length;
 	}
 	public Document getDocument() {
-		System.out.println("Event: getDocument");
+		doc.println("Event: getDocument");
 		return doc;
 	}
 	public DocumentEvent.EventType getType() {
-		System.out.println("Event: getType -> " + type);
+		doc.println("Event: getType -> " + type);
 		return type;
 	}
 	public DocumentEvent.ElementChange getChange(Element elem) {
-		System.out.println("Event: getChange (Element:" + elem.getName() + ")");
+		doc.println("Event: getChange (Element:" + elem.getName() + ")");
 		// TODO: is this ever called for leaf Elements?
 		return this;
 	}
@@ -52,40 +52,40 @@ public class FifoEvent implements DocumentEvent, DocumentEvent.ElementChange
 // DocumentEvent.ElementChange interface
 
 	public Element getElement() {
-		System.out.println("EventChange: getElement");
+		doc.println("EventChange: getElement");
 		if (type != DocumentEvent.EventType.CHANGE) return null;
 		return doc.getElement(line_offset);
 	}
 	public int getIndex() {
-		System.out.println("EventChange: getIndex");
+		doc.println("EventChange: getIndex");
 		return line_offset;
 	}
 	public Element[] getChildrenRemoved() {
-		System.out.print("EventChange: getChildrenRemoved -> ");
+		doc.print("EventChange: getChildrenRemoved -> ");
 		if (type != DocumentEvent.EventType.REMOVE) {
-			System.out.println("null");
+			doc.println("null");
 			return null;
 		}
 		FifoElementLine[] array = doc.getElementArray(line_offset, line_length);
-		System.out.print("[ ");
+		doc.print("[ ");
 		for (FifoElementLine e : array) {
-			System.out.print(e.index + " ");
+			doc.print(e.index + " ");
 		}
-		System.out.println("]");
+		doc.println("]");
 		return array;
 	}
 	public Element[] getChildrenAdded() {
-		System.out.print("EventChange: getChildrenAdded -> ");
+		doc.print("EventChange: getChildrenAdded -> ");
 		if (type != DocumentEvent.EventType.INSERT) {
-			System.out.println("null");
+			doc.println("null");
 			return null;
 		}
 		FifoElementLine[] array = doc.getElementArray(line_offset, line_length);
-		System.out.print("[ ");
+		doc.print("[ ");
 		for (FifoElementLine e : array) {
-			System.out.print(e.index + " ");
+			doc.print(e.index + " ");
 		}
-		System.out.println("]");
+		doc.println("]");
 		return array;
 	}
 
