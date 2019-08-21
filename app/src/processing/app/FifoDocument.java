@@ -186,8 +186,10 @@ public class FifoDocument implements Document
 			s.getChars(0, char_len, char_buf, chead);
 		} else {
 			int remain = char_size - chead;
+			println("copy crossed end, chead = " + chead
+				+ ", size = " + char_size + ", remain = " + remain);
 			s.getChars(0, remain, char_buf, chead);
-			s.getChars(remain, char_len - remain, char_buf, 0);
+			s.getChars(remain, char_len, char_buf, 0);
 		}
 		char_head += char_len;
 		if (char_head >= char_size) char_head -= char_size;
@@ -235,10 +237,10 @@ public class FifoDocument implements Document
 		}
 	}
 	public void addLine(int index, int len) {
-		println(" addLine, " + len + " chars");
 		if (index >= char_size) index -= char_size;
 		line_head++;
 		if (line_head >= line_size) line_head = 0;
+		println(" addLine, " + len + " chars, into line index = " + line_head);
 		line_buf[line_head].set(index, len);
 	}
 
