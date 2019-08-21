@@ -45,11 +45,17 @@ public class FifoElementLine implements Element
 		return null;
 	}
 
-	// Called by FifoDocument to change line info
+	// Called by FifoDocument
 
 	public void set(int new_index, int new_len) {
 		index = new_index;
 		len = new_len;
+	}
+	public int getLength() {
+		return len;
+	}
+	public int getIndex() {
+		return index;
 	}
 
 	// Never used (for leaf / line Elements)

@@ -80,6 +80,7 @@ public class FifoDocument implements Document
 	private int char_head;
 	private int char_tail;
 	final private int char_size;
+	final private int char_threshold;
 	private char[] char_buf;
 	private long char_total;
 
@@ -87,6 +88,7 @@ public class FifoDocument implements Document
 	private int line_head;
 	private int line_tail;
 	final private int line_size;
+	final private int line_threshold;
 	private FifoElementLine[] line_buf;
 	private boolean last_line_incomplete;
 
@@ -98,6 +100,7 @@ public class FifoDocument implements Document
 	public FifoDocument(int size) {
 		// Allocate the big buffer to hold raw character data
 		char_size = size;
+		char_threshold = (char_size * 6) / 10;
 		char_head = 0;
 		char_tail = 0;
 		char_buf = new char[char_size];
@@ -106,6 +109,7 @@ public class FifoDocument implements Document
 		// Allocate the list of Elements to represent the lines
 		line_root = new FifoElementRoot(this);
 		line_size = size / 10;
+		line_threshold = (line_size * 6) / 10;
 		line_head = 0;
 		line_tail = 0;
 		line_buf = new FifoElementLine[line_size];
@@ -127,17 +131,13 @@ public class FifoDocument implements Document
 	public void insertString(int offs, String s, AttributeSet a) throws BadLocationException {
 		// TODO: check that offs == total data stored
 		int char_len = s.length();
+		if (char_len <= 0) return;
+		// TODO: check if char_len >= char_threshold, what to do???
 		println("Document: **INSERT** insertString, offset=" + offs + ", len=" + char_len);
 		println("TEXT=\"" + s + "\"");
 
-		if (char_len <= 0) return;
-
-		int insert_offset = char_head;
-		int line_offset = line_head;
-
-		// count how many lines are to be added, and whether we end with '\n'
+		// count how many lines this string will add
 		int line_len = 0;
-		boolean new_last_line_incomplete = true;
 		int npos = 0;
 		if (last_line_incomplete) {
 			npos = s.indexOf('\n');
@@ -166,13 +166,85 @@ public class FifoDocument implements Document
 			}
 		}
 		println(" adds " + line_len + " lines");
-			//+ (last_line_incomplete ? "last has no NL" : "ends with NL"));
-
+		// TODO: what to do if line_len >= line_threshold ???
 
 
 		if (scrolling) {
-			// TODO: if scrolling, delete old data as needed
+			// if scrolling, delete old data as needed to stay under thresholds
+			int char_count = getLength();
+			int line_count = getElementCount();
 
+			int ctail = char_tail;
+			int ctail_begin = ctail + 1; // index of 1st deleted char
+			if (ctail_begin >= char_size) ctail_begin = 0;
+			int cdelete = 0;             // number of chars deleted
+
+			int ltail = line_tail;
+			int ltail_begin = ltail + 1; // index of 1st deleted line
+			if (ltail_begin >= line_size) ltail_begin = 0;
+			int ldelete = 0;             // number of lines deleted
+
+			FifoElementLine shortened = null;
+
+			// step 1: delete old lines until not over line_threshold
+			int lines_to_delete = line_count + line_len - line_threshold;
+			if (lines_to_delete > 0) {
+				println("delete step #1, " + lines_to_delete + " lines");
+				ldelete = lines_to_delete;
+				line_count -= lines_to_delete;
+				do {
+					if (++ltail >= line_size) ltail = 0;
+					int len = line_buf[ltail].getLength();
+					ctail += len;
+					if (ctail >= char_size) ctail -= char_size;
+					char_count -= len;
+					cdelete += len;
+				} while (--lines_to_delete > 0);
+			}
+
+			// step 2: keep deleting old lines until not over char_threshold
+			while ((char_count + char_len > char_threshold) && (line_count > 1)) {
+				if (++ltail >= line_size) ltail = 0;
+				int len = line_buf[ltail].getLength();
+				println("delete step #2, line with " + len + " chars");
+				ctail += len;
+				if (ctail >= char_size) ctail -= char_size;
+				char_count -= len;
+				cdelete += len;
+				line_count--;
+				ldelete++;
+			}
+
+			// step 3: if still over char_threshold with only 1 last line, shorten it
+			int chars_to_delete = char_count + char_len - char_threshold;
+			if (chars_to_delete > 0) {
+				println("delete step #3, shorten last line by " + chars_to_delete + " chars");
+				int last = ltail + 1;
+				if (last >= line_size) last = 0;
+				shortened = line_buf[last];
+				int index = shortened.getIndex();
+				int len = shortened.getLength();
+				index += chars_to_delete;
+				if (index >= char_size) index -= char_size;
+				len -= chars_to_delete;
+				shortened.set(index, len);
+				ctail += chars_to_delete;
+				if (ctail >= char_size) ctail -= char_size;
+				char_count -= chars_to_delete;
+				cdelete += chars_to_delete;
+			}
+
+			// if anything was deleted, transmit a remove event
+			if (cdelete > 0 || ldelete > 0) {
+				char_tail = ctail;
+				line_tail = ltail;
+				removeEvent.setLineRange(ltail_begin, ldelete);
+				removeEvent.setCharRange(ctail_begin, cdelete);
+				removeEvent.setAppended(shortened);
+				for (DocumentListener d : listeners) {
+					d.removeUpdate(removeEvent);
+				}
+			}
 		} else {
 			// TODO: if still, truncate input as needed, recompute lines
 
@@ -404,10 +476,10 @@ public class FifoDocument implements Document
 ////////////////////////////////////////////////////////
 
 	public void print(String str) {
-		System.out.print(str);
+		//System.out.print(str);
 	}
 	public void println(String str) {
-		System.out.println(str);
+		//System.out.println(str);
 	}
 
 }
