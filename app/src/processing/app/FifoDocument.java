@@ -44,7 +44,7 @@ objects for each insertion consumes far too much memory and CPU time
 when many millions of relatively small insertions are performed every
 second.
 
-DocumentFIFO replaces the normal Document with a very limited Document
+FifoDocument replaces the normal Document with a very limited Document
 optimized for the Arduino Serial Monitor.
 
 Text insertion is only allowed to append to the end of the document.
@@ -52,8 +52,8 @@ Any text removal deletes the entire document.  Text attributes are
 ignored.  UndoableEditListener is not supported.  Only the minimum
 Document features needed by the Arduino Serial Monitor are implemented.
 
-DocumentFIFO uses a fixed size buffer.  Data is automatically
-discarded by DocumentFIFO as the Arduino Serial Monitor keeps adding
+FifoDocument uses a fixed size buffer.  Data is automatically
+discarded by FifoDocument as the Arduino Serial Monitor keeps adding
 more incoming chars, according to 1 of 2 memory management stratagies.
 
 The "scrolling" strategy automatically discards the oldest buffered
@@ -81,13 +81,14 @@ public class FifoDocument implements Document
 	private int char_tail;
 	final private int char_size;
 	private char[] char_buf;
+	private long char_total;
 
 	FifoElementRoot line_root;
 	private int line_head;
 	private int line_tail;
 	final private int line_size;
 	private FifoElementLine[] line_buf;
-	private boolean last_line_complete;
+	private boolean last_line_incomplete;
 
 	private List<DocumentListener> listeners;
 	private boolean scrolling = true;
@@ -100,6 +101,7 @@ public class FifoDocument implements Document
 		char_head = 0;
 		char_tail = 0;
 		char_buf = new char[char_size];
+		char_total = 0;
 
 		// Allocate the list of Elements to represent the lines
 		line_root = new FifoElementRoot(this);
@@ -110,7 +112,7 @@ public class FifoDocument implements Document
 		for (int i=0; i < line_size; i++) {
 			line_buf[i] = new FifoElementLine(this, i);
 		}
-		last_line_complete = false;
+		last_line_incomplete = false;
 
 		// Allocate other misc stuff
 		listeners = new ArrayList<DocumentListener>();
@@ -123,37 +125,142 @@ public class FifoDocument implements Document
 ////////////////////////////////////////////////////////
 
 	public void insertString(int offs, String s, AttributeSet a) throws BadLocationException {
-		int len = s.length();
-		println("Document: **INSERT** insertString, offset=" + offs + ", len=" + len);
+		// TODO: check that offs == total data stored
+		int char_len = s.length();
+		println("Document: **INSERT** insertString, offset=" + offs + ", len=" + char_len);
+		println("TEXT=\"" + s + "\"");
 
-		if (len <= 0) return;
+		if (char_len <= 0) return;
 
 		int insert_offset = char_head;
 		int line_offset = line_head;
 
-		/*int newline_count = 0;
-		int newline_offset = 0;
-		while (true) {
-			newline_offset = indexOf('\n', newline_offset);
-			if (newline_offset < 0) break;
-			newline_count++;
-		}*/
+		// count how many lines are to be added, and whether we end with '\n'
+		int line_len = 0;
+		boolean new_last_line_incomplete = true;
+		int npos = 0;
+		if (last_line_incomplete) {
+			npos = s.indexOf('\n');
+			if (npos >= 0) {
+				npos++;
+				println(" first " + npos + " chars add to last line");
+			} else {
+				println(" all " + char_len + " chars add to last line");
+			}
+		}
+		if (npos >= 0) {
+			while (true) {
+				if (npos >= char_len) break;
+				int next_pos = s.indexOf('\n', npos);
+				line_len++;
+				if (next_pos >= 0) {
+					int len = next_pos - npos + 1;
+					println("line " + line_len + " has " + len + " chars");
+				} else {
+					int len = char_len - npos;
+					print("line " + line_len + " has " + len + " chars");
+					println(" (leaves last line incomplete)");
+				}
+				if (next_pos < 0) break;
+				npos = next_pos + 1;
+			}
+		}
+		println(" adds " + line_len + " lines");
+			//+ (last_line_incomplete ? "last has no NL" : "ends with NL"));
 
 
-		// simple test, store each incoming write to a single element
-		s.getChars(0, len, char_buf, char_head);
-		line_buf[line_head].set(char_head, len);
-		line_head += 1;
-		char_head += len;
 
+		if (scrolling) {
+			// TODO: if scrolling, delete old data as needed
+
+		} else {
+			// TODO: if still, truncate input as needed, recompute lines
+
+		}
+
+
+		// copy string contents to char_buf
+		int chead = char_head + 1;
+		if (chead >= char_size) chead = 0;
+		if (chead + char_len <= char_size) {
+			s.getChars(0, char_len, char_buf, chead);
+		} else {
+			int remain = char_size - chead;
+			s.getChars(0, remain, char_buf, chead);
+			s.getChars(remain, char_len - remain, char_buf, 0);
+		}
+		char_head += char_len;
+		if (char_head >= char_size) char_head -= char_size;
+		char_total += char_len;
+
+		// add text to last line
+		if (last_line_incomplete) {
+			npos = s.indexOf('\n');
+			if (npos >= 0) {
+				line_buf[line_head].len += ++npos;
+			} else {
+				line_buf[line_head].len += char_len;
+			}
+			insertEvent.setAppended(line_buf[line_head]);
+		} else {
+			insertEvent.setAppended(null);
+			npos = 0;
+		}
+
+		// add lines to Element list
+		int lhead = line_head + 1;
+		if (lhead > line_size) lhead = 0;
+		if (npos >= 0) {
+			while (true) {
+				if (npos >= char_len) {
+					last_line_incomplete = false;
+					break;
+				}
+				int next_pos = s.indexOf('\n', npos);
+				if (next_pos < 0) {
+					addLine(chead + npos, char_len - npos);
+					last_line_incomplete = true;
+					break;
+				}
+				addLine(chead + npos, next_pos - npos + 1);
+				npos = next_pos + 1;
+			}
+		}
+
+		// transmit insert event
+		insertEvent.setCharRange(charIndexToOffset(chead), char_len);
+		insertEvent.setLineRange(lineIndexToOffset(lhead), line_len);
 		for (DocumentListener d : listeners) {
-			insertEvent.setCharOffsetLength(insert_offset, len);
-			insertEvent.setLineOffsetLength(line_offset, 1);
 			d.insertUpdate(insertEvent);
 		}
 	}
+	public void addLine(int index, int len) {
+		println(" addLine, " + len + " chars");
+		if (index >= char_size) index -= char_size;
+		line_head++;
+		if (line_head >= line_size) line_head = 0;
+		line_buf[line_head].set(index, len);
+	}
+
 	public void remove(int offset, int len) throws BadLocationException {
 		println("Document: remove, offset=" + offset + ", len=" + len);
+		int char_len = char_head - char_tail;
+		if (char_len == 0) return; // already empty
+		if (char_len < 0) char_len += char_size;
+
+		int line_len = line_head - line_tail;
+		if (line_len < 0) line_len += line_size;
+
+		removeEvent.setCharRange(0, char_len);
+		removeEvent.setLineRange(0, line_len);
+		for (DocumentListener d : listeners) {
+			d.removeUpdate(removeEvent);
+		}
+		char_head = 0;
+		char_tail = 0;
+		line_head = 0;
+		line_tail = 0;
+		last_line_incomplete = false;
 	}
 
 	public void getText(int offset, int length, Segment txt) throws BadLocationException {
@@ -161,19 +268,30 @@ public class FifoDocument implements Document
 		if (length < 0 || offset < 0) {
 			throw new BadLocationException("negative input not allowed", 0);
 		}
-		if (offset + length > char_head) {
+		int chartotallen = char_head - char_tail;
+		if (chartotallen < 0) chartotallen += char_size;
+		if (offset + length > chartotallen) {
 			throw new BadLocationException("access beyond data", offset + length);
 		}
 		txt.array = char_buf;
-		txt.offset = offset;
-		txt.count = length;
-		txt.setPartialReturn(false);
+		int index = offset + char_tail + 1;
+		if (index >= char_size) index -= char_size;
+		txt.offset = index;
+
+		if (index + length < char_size) {
+			txt.count = length;
+			txt.setPartialReturn(false);
+		} else {
+			txt.count = char_size - index;
+			txt.setPartialReturn(true);
+		}
 		println("  text=" + txt.toString());
-		println("");
 	}
 	public int getLength() {
-		println("Document: getLength -> " + char_head);
-		return char_head;
+		int len = char_head - char_tail;
+		if (len < 0) len += char_size;
+		println("Document: getLength -> " + len);
+		return len;
 	}
 
 ////////////////////////////////////////////////////////
@@ -181,17 +299,21 @@ public class FifoDocument implements Document
 ////////////////////////////////////////////////////////
 
 	public int getElementCount() {
-		return line_head;
+		int len = line_head - line_tail;
+		if (len < 0) len += line_size;
+		return len;
 	}
-	public FifoElementLine getElement(int index) {
+	public FifoElementLine getElement(int offset) {
+		int index = offset + line_tail + 1;
+		if (index >= line_size) index -= line_size;
 		return line_buf[index];
 	}
 	public int getElementIndex(int offset) {
 		int num = line_head;
 		if (num < 1) return 0;
 		for (int i=0; i < num; i++) { // TODO: binary search
-			int begin = line_buf[i].head;
-			int end = line_buf[i].head + line_buf[i].len - 1;
+			int begin = line_buf[i].index;
+			int end = line_buf[i].index + line_buf[i].len - 1;
 			if (offset >= begin && offset <= end)  return i;
 		}
 		return num - 1;
@@ -199,10 +321,23 @@ public class FifoDocument implements Document
 	public FifoElementLine[] getElementArray(int offset, int length) {
 		// TODO: should we pre-allocate and reuse this array to avoid garbage collection?
 		FifoElementLine[] list = new FifoElementLine[length];
+		int index = offset + line_tail + 1;
+		if (index >= line_size) index -= line_size;
 		for (int i=0; i < length; i++) {
-			list[i] = line_buf[offset + i];
+			list[i] = line_buf[index++];
+			if (index >= line_size) index -= line_size;
 		}
 		return list;
+	}
+	public int charIndexToOffset(int index) {
+		int offset = index - char_tail - 1;
+		if (offset < 0) offset += char_size;
+		return offset;
+	}
+	public int lineIndexToOffset(int index) {
+		int offset = index - line_tail - 1;
+		if (offset < 0) offset += line_size;
+		return offset;
 	}
 
 ////////////////////////////////////////////////////////

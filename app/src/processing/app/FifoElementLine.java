@@ -9,62 +9,70 @@ import javax.swing.text.AttributeSet;
 public class FifoElementLine implements Element
 {
 	public final FifoDocument doc;
-	public final int index;
-	public int head;
+	public final int n;
+	public int index;
 	public int len;
 
 	public FifoElementLine(FifoDocument d, int i) {
 		doc = d;
-		index = i;
-		head = 0;
+		n = i;
+		index = 0;
 		len = 0;
 	}
 
-	public void set(int new_head, int new_len) {
-		head = new_head;
+	// Called by JTextArea to access lines
+
+	public int getStartOffset() {
+		int offset = doc.charIndexToOffset(index);
+		doc.println("ElementLine[" + n + "]: getStartOffset -> " + offset);
+		return offset;
+	}
+	public int getEndOffset() {
+		int offset = doc.charIndexToOffset(index) + len;
+		doc.println("ElementLine[" + n + "]: getEndOffset -> " + offset);
+		return offset;
+	}
+	public Document getDocument() {
+		doc.println("ElementLine[" + n + "].getDocument");
+		return doc;
+	}
+	public boolean isLeaf() {
+		doc.println("ElementLine[" + n + "]: isLeaf");
+		return true;
+	}
+	public AttributeSet getAttributes() {
+		doc.println("ElementLine[" + n + "]: getAttributes");
+		return null;
+	}
+
+	// Called by FifoDocument to change line info
+
+	public void set(int new_index, int new_len) {
+		index = new_index;
 		len = new_len;
 	}
 
-	public Document getDocument() {
-		doc.println("ElementLine[" + index + "].getDocument");
-		return doc;
-	}
+	// Never used (for leaf / line Elements)
+
 	public Element getParentElement() {
-		doc.println("ElementLine[" + index + "]: getParentElement");
+		doc.println("ElementLine[" + n + "]: getParentElement");
 		return null;
 	}
 	public String getName() {
-		//doc.println("ElementLine[" + index + "]: getName");
-		return "leaf[" + index + "]";
-	}
-	public AttributeSet getAttributes() {
-		doc.println("ElementLine[" + index + "]: getAttributes");
-		return null;
-	}
-	public int getStartOffset() {
-		doc.println("ElementLine[" + index + "]: getStartOffset -> " + head);
-		return head;
-	}
-	public int getEndOffset() {
-		int end = head + len - 1;
-		doc.println("ElementLine[" + index + "]: getEndOffset -> " + end);
-		return end;
+		//doc.println("ElementLine[" + n + "]: getName");
+		return "leaf[" + n + "]";
 	}
 	public int getElementIndex(int offset) {
-		doc.println("ElementLine[" + index + "]: getElementIndex, offset=" + offset);
+		doc.println("ElementLine[" + n + "]: getElementIndex, offset=" + offset);
 		return -1;
 	}
 	public int getElementCount() {
-		doc.println("ElementLine[" + index + "]: getElementCount");
+		doc.println("ElementLine[" + n + "]: getElementCount");
 		return 0;
 	}
 	public Element getElement(int index) {
-		doc.println("ElementLine[" + index + "]: getElement, index=" + index);
+		doc.println("ElementLine[" + n + "]: getElement, index=" + index);
 		return null;
-	}
-	public boolean isLeaf() {
-		doc.println("ElementLine[" + index + "]: isLeaf");
-		return true;
 	}
 }
 

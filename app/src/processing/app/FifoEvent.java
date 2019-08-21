@@ -12,6 +12,7 @@ public class FifoEvent implements DocumentEvent, DocumentEvent.ElementChange
 	int char_length = 0;
 	public int line_offset = 0;
 	public int line_length = 0;
+	Element appended = null;
 
 	public FifoEvent(FifoDocument d, DocumentEvent.EventType t) {
 		doc = d;
@@ -19,14 +20,18 @@ public class FifoEvent implements DocumentEvent, DocumentEvent.ElementChange
 	}
 
 // DocumentEvent interface
-	public void setCharOffsetLength(int offset, int length) {
+	public void setCharRange(int offset, int length) {
 		char_offset = offset;
 		char_length = length;
 	}
-	public void setLineOffsetLength(int offset, int length) {
+	public void setLineRange(int offset, int length) {
 		line_offset = offset;
 		line_length = length;
 	}
+	public void setAppended(Element e) {
+		appended = e;
+	}
+
 	public int getOffset() {
 		doc.println("Event: getOffset -> " + char_offset);
 		return char_offset;
@@ -53,8 +58,7 @@ public class FifoEvent implements DocumentEvent, DocumentEvent.ElementChange
 
 	public Element getElement() {
 		doc.println("EventChange: getElement");
-		if (type != DocumentEvent.EventType.CHANGE) return null;
-		return doc.getElement(line_offset);
+		return appended;
 	}
 	public int getIndex() {
 		doc.println("EventChange: getIndex");
@@ -83,7 +87,7 @@ public class FifoEvent implements DocumentEvent, DocumentEvent.ElementChange
 		FifoElementLine[] array = doc.getElementArray(line_offset, line_length);
 		doc.print("[ ");
 		for (FifoElementLine e : array) {
-			doc.print(e.index + " ");
+			doc.print(e.n + " ");
 		}
 		doc.println("]");
 		return array;

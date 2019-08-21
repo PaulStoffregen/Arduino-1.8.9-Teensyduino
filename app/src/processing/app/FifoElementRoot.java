@@ -14,10 +14,29 @@ public class FifoElementRoot implements Element
 		doc = d;
 	}
 
+	// Called by JTextArea to find lines
+
+	public int getElementCount() {
+		int num = doc.getElementCount();
+		doc.println("ElementRoot: getElementCount -> " + num);
+		return num;
+	}
+	public Element getElement(int offset) {
+		doc.println("ElementRoot: getElement, offset=" + offset);
+		return doc.getElement(offset);
+	}
 	public Document getDocument() {
 		doc.println("ElementRoot.getDocument");
 		return doc;
 	}
+	public int getElementIndex(int offset) {
+		int i = doc.getElementIndex(offset);
+		doc.println("ElementRoot: getElementIndex, offset=" + offset + " -> index=" + i);
+		return i;
+	}
+
+	// Never used (for root Element)
+
 	public Element getParentElement() {
 		doc.println("ElementRoot: getParentElement");
 		return null;
@@ -37,21 +56,6 @@ public class FifoElementRoot implements Element
 	public int getEndOffset() {
 		doc.println("ElementRoot: getEndOffset");
 		return 0;
-	}
-	public int getElementIndex(int offset) {
-		int index = doc.getElementIndex(offset);
-		doc.println("ElementRoot: getElementIndex, offset=" + offset + " -> index=" + index);
-		return doc.getElementIndex(offset);
-	}
-
-	public int getElementCount() {
-		int num = doc.getElementCount();
-		doc.println("ElementRoot: getElementCount -> " + num);
-		return num;
-	}
-	public Element getElement(int index) {
-		doc.println("ElementRoot: getElement, index=" + index);
-		return doc.getElement(index);
 	}
 	public boolean isLeaf() {
 		doc.println("ElementRoot: isLeaf");
