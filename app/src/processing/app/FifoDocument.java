@@ -123,6 +123,9 @@ public class FifoDocument implements Document
 		insertEvent = new FifoEvent(this, DocumentEvent.EventType.INSERT);
 		removeEvent = new FifoEvent(this, DocumentEvent.EventType.REMOVE);
 	}
+	public void setScrollingMode(boolean mode) {
+		scrolling = mode;
+	}
 
 ////////////////////////////////////////////////////////
 // Document Interface - interesting functions
@@ -135,6 +138,18 @@ public class FifoDocument implements Document
 		// TODO: check if char_len >= char_threshold, what to do???
 		println("Document: **INSERT** insertString, offset=" + offs + ", len=" + char_len);
 		println("TEXT=\"" + s + "\"");
+
+		// if not scrolling, check if buffer full, discard chars which can't fit
+		if (!scrolling) {
+			int char_count = getLength();
+			int line_count = getElementCount();
+			if (char_count >= char_size - 1) return; // buffer already full
+			if (line_count >= line_size - 1) return; // buffer already full
+			if (char_count + char_len >= char_size) {
+				char_len = char_size - char_count - 1;
+				s = s.substring(0, char_len);
+			}
+		}
 
 		// count how many lines this string will add
 		int line_len = 0;
@@ -170,7 +185,7 @@ public class FifoDocument implements Document
 
 
 		if (scrolling) {
-			// if scrolling, delete old data as needed to stay under thresholds
+			// scrolling mode: delete old data as needed to stay under thresholds
 			int char_count = getLength();
 			int line_count = getElementCount();
 
@@ -246,8 +261,14 @@ public class FifoDocument implements Document
 				}
 			}
 		} else {
-			// TODO: if still, truncate input as needed, recompute lines
+			// still mode: we already discarded chars, but we also
+			// need to make sure all these new lines can fit.
+			int line_count = getElementCount();
+			if (line_count + line_len >= line_size) {
+				// TODO: truncate input to only lines which fit
 
+				return; // ugly kludge for now, just discard everything new
+			}
 		}
 
 
@@ -385,6 +406,7 @@ public class FifoDocument implements Document
 	public int getElementIndex(int offset) {
 		int num = line_head;
 		if (num < 1) return 0;
+		 //System.out.println("getElementIndex: slow linear search");
 		for (int i=0; i < num; i++) { // TODO: binary search
 			int begin = line_buf[i].index;
 			int end = line_buf[i].index + line_buf[i].len - 1;
