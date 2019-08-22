@@ -26,7 +26,7 @@ public class FifoElementRoot implements Element
 		return doc.getElement(offset);
 	}
 	public Document getDocument() {
-		doc.println("ElementRoot.getDocument");
+		//doc.println("ElementRoot.getDocument");
 		return doc;
 	}
 	public int getElementIndex(int offset) {
@@ -55,7 +55,9 @@ public class FifoElementRoot implements Element
 	}
 	public int getEndOffset() {
 		doc.println("ElementRoot: getEndOffset");
-		return 0;
+		int len = doc.getCharCount();
+		//if (len <= 0) return 0;
+		return len;
 	}
 	public boolean isLeaf() {
 		doc.println("ElementRoot: isLeaf");

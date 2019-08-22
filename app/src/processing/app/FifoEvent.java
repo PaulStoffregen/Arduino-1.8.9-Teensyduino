@@ -19,7 +19,6 @@ public class FifoEvent implements DocumentEvent, DocumentEvent.ElementChange
 		type = t;
 	}
 
-// DocumentEvent interface
 	public void setCharRange(int offset, int length) {
 		char_offset = offset;
 		char_length = length;
@@ -31,6 +30,8 @@ public class FifoEvent implements DocumentEvent, DocumentEvent.ElementChange
 	public void setAppended(Element e) {
 		appended = e;
 	}
+
+// DocumentEvent interface
 
 	public int getOffset() {
 		doc.println("Event: getOffset -> " + char_offset);
@@ -49,7 +50,7 @@ public class FifoEvent implements DocumentEvent, DocumentEvent.ElementChange
 		return type;
 	}
 	public DocumentEvent.ElementChange getChange(Element elem) {
-		doc.println("Event: getChange (Element:" + elem.getName() + ")");
+		//doc.println("Event: getChange (Element:" + elem.getName() + ")");
 		// TODO: is this ever called for leaf Elements?
 		return this;
 	}

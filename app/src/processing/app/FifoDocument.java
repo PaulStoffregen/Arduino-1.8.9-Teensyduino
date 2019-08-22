@@ -96,6 +96,8 @@ public class FifoDocument implements Document
 	private boolean scrolling = true;
 	FifoEvent insertEvent;
 	FifoEvent removeEvent;
+	FifoPosition startPosition;
+	FifoPosition endPosition;
 
 	public FifoDocument(int size) {
 		// Allocate the big buffer to hold raw character data
@@ -122,6 +124,8 @@ public class FifoDocument implements Document
 		listeners = new ArrayList<DocumentListener>();
 		insertEvent = new FifoEvent(this, DocumentEvent.EventType.INSERT);
 		removeEvent = new FifoEvent(this, DocumentEvent.EventType.REMOVE);
+		startPosition = new FifoPosition(this, 0);
+		endPosition = new FifoPosition(this, Long.MAX_VALUE);
 	}
 	public void setScrollingMode(boolean mode) {
 		scrolling = mode;
@@ -141,7 +145,7 @@ public class FifoDocument implements Document
 
 		// if not scrolling, check if buffer full, discard chars which can't fit
 		if (!scrolling) {
-			int char_count = getLength();
+			int char_count = getCharCount();
 			int line_count = getElementCount();
 			if (char_count >= char_size - 1) return; // buffer already full
 			if (line_count >= line_size - 1) return; // buffer already full
@@ -186,7 +190,7 @@ public class FifoDocument implements Document
 
 		if (scrolling) {
 			// scrolling mode: delete old data as needed to stay under thresholds
-			int char_count = getLength();
+			int char_count = getCharCount();
 			int line_count = getElementCount();
 
 			int ctail = char_tail;
@@ -382,9 +386,13 @@ public class FifoDocument implements Document
 		}
 		println("  text=" + txt.toString());
 	}
-	public int getLength() {
+	public int getCharCount() {
 		int len = char_head - char_tail;
 		if (len < 0) len += char_size;
+		return len;
+	}
+	public int getLength() {
+		int len = getCharCount();
 		println("Document: getLength -> " + len);
 		return len;
 	}
@@ -437,6 +445,65 @@ public class FifoDocument implements Document
 	}
 
 ////////////////////////////////////////////////////////
+// Position support functions
+////////////////////////////////////////////////////////
+
+	// Position represents a location within a document, which automatically
+	// updates as the document is changed.  To implement Position for a FIFO,
+	// a 64 bit long is used to track the total number of characters ever
+	// added to the FIFO.  If the 480 Mbit/sec USB data rate of 50 Mbyte/sec
+	// is sustained, 63 unsigned bits will take 5845 years to overflow.
+	// Positions are created by simply recording the 64 bit absolute position
+	// within the entire history of the data stream.
+
+	public Position createPosition(int offset) throws BadLocationException {
+		println("Document: createPosition");
+		if (offset < 0) throw new BadLocationException("negative input not allowed", 0);
+		if (offset == 0) return startPosition;
+		int length = getCharCount();
+		if (offset > length) throw new BadLocationException("beyond end", offset);
+		return new FifoPosition(this, char_total - length + offset);
+	}
+	public Position getStartPosition() {
+		println("Document: getStartPosition");
+		return startPosition;
+	}
+	public Position getEndPosition() {
+		println("Document: getEndPosition");
+		return endPosition;
+	}
+	public int positionToOffset(FifoPosition p) {
+		long location = p.getPositionNumber();
+		int length = getCharCount();
+		long first_location = char_total - length;
+		if (location <= first_location) return 0;
+		if (location >= char_total) return length - 1;
+		return (int)(location - first_location);
+	}
+	public String getText(int offset, int length) throws BadLocationException {
+		println("Document: getText (String), offset=" + offset + ", len=" + length);
+		if (length < 0 || offset < 0) {
+			throw new BadLocationException("negative input not allowed", 0);
+		}
+		int chartotallen = char_head - char_tail;
+		if (chartotallen < 0) chartotallen += char_size;
+		if (offset + length > chartotallen) {
+			throw new BadLocationException("access beyond data", offset + length);
+		}
+
+		int index = offset + char_tail + 1;
+		if (index >= char_size) index -= char_size;
+		if (index + length < char_size) {
+			return new String(char_buf, index, length);
+		} else {
+			int remain = char_size - index;
+			String s1 = new String(char_buf, index, remain);
+			String s2 = new String(char_buf, 0, length - remain);
+			return s1 + s2;
+		}
+	}
+
+////////////////////////////////////////////////////////
 // Document Interface - boring boilerplate stuff
 ////////////////////////////////////////////////////////
 
@@ -447,10 +514,6 @@ public class FifoDocument implements Document
 	public void removeDocumentListener(DocumentListener listener) {
 		println("Document: removeDocumentListener");
 		listeners.remove(listener);
-	}
-	public String getText(int offset, int length) throws BadLocationException {
-		println("Document: getText (String)");
-		return "";
 	}
 	public void addUndoableEditListener(UndoableEditListener listener) {
 		println("Document: addUndoableEditListener " + listener);
@@ -468,18 +531,6 @@ public class FifoDocument implements Document
 	}
 	public void putProperty(Object key, Object value) {
 		println("Document: putProperty " + key + "  " + value);
-	}
-	public Position getStartPosition() {
-		println("Document: getStartPosition");
-		return null;
-	}
-	public Position getEndPosition() {
-		println("Document: getEndPosition");
-		return null;
-	}
-	public Position createPosition(int offs) throws BadLocationException {
-		println("Document: createPosition");
-		return null;
 	}
 	public Element[] getRootElements() {
 		println("Document: getRootElements");

@@ -24,24 +24,24 @@ public class FifoElementLine implements Element
 
 	public int getStartOffset() {
 		int offset = doc.charIndexToOffset(index);
-		doc.println("ElementLine[" + n + "]: getStartOffset -> " + offset);
+		//doc.println("ElementLine[" + n + "]: getStartOffset -> " + offset);
 		return offset;
 	}
 	public int getEndOffset() {
 		int offset = doc.charIndexToOffset(index) + len;
-		doc.println("ElementLine[" + n + "]: getEndOffset -> " + offset);
+		//doc.println("ElementLine[" + n + "]: getEndOffset -> " + offset);
 		return offset;
 	}
 	public Document getDocument() {
-		doc.println("ElementLine[" + n + "].getDocument");
+		//doc.println("ElementLine[" + n + "].getDocument");
 		return doc;
 	}
 	public boolean isLeaf() {
-		doc.println("ElementLine[" + n + "]: isLeaf");
+		//doc.println("ElementLine[" + n + "]: isLeaf");
 		return true;
 	}
 	public AttributeSet getAttributes() {
-		doc.println("ElementLine[" + n + "]: getAttributes");
+		//doc.println("ElementLine[" + n + "]: getAttributes");
 		return null;
 	}
 
