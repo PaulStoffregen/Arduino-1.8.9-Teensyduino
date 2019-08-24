@@ -4,6 +4,12 @@ import javax.swing.text.Document;
 import javax.swing.text.Element;
 import javax.swing.text.AttributeSet;
 
+// Only a single instance of FifoElementRoot is created within FifoDocument.
+// This root element represents the entire document.  JTextArea uses it to
+// get the Line Elements when it knows the line number, or to search for the
+// line number when it knows only a character offset.  Actual implementation
+// is done within FifoDocument.
+
 // https://www.comp.nus.edu.sg/~cs3283/ftp/Java/swingConnect/text/element_interface/element_interface.html
 
 public class FifoElementRoot implements Element

@@ -4,6 +4,13 @@ import javax.swing.text.Document;
 import javax.swing.text.Element;
 import javax.swing.text.AttributeSet;
 
+
+// A large fixed-size array of instances of this class are created within FifoDocument.
+// JTextArea uses the Root Element to find the Line Element instances.  This class
+// really serves no purpose other than allowing JTextArea to find the character offsets
+// for the beginning and ending of each line.  It then uses those offsets to fetch the
+// text from FifoDocument.
+
 // https://www.comp.nus.edu.sg/~cs3283/ftp/Java/swingConnect/text/element_interface/element_interface.html
 
 public class FifoElementLine implements Element

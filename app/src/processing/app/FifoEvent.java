@@ -4,6 +4,21 @@ import javax.swing.text.Document;
 import javax.swing.text.Element;
 import javax.swing.event.DocumentEvent;
 
+// Each time the FifoDocument changes, a FifoEvent instance is given
+// all registered listeners.  FifoDocument creates 2 instances of this
+// class, one to notify listeners of insertions (which occur as the
+// Arduino Serial Monitor appends data to JTextArea) and the other
+// to notify of removal (which usually occurs while scrolling, where
+// old data is automatically deleted).
+
+// Even through you might reasonably expect JTextArea would "know"
+// how FifoDocument has changed, since it calls FifoDocument's
+// insertString() and remove(), the system is designed to send
+// changes, then later respond to these DocumentEvent notifications.
+// This event response is the key ingredient which allows FifoDocument
+// to automatically discard data and have JTextArea properly update,
+// even though it did not call any function to initiate data deletion.
+
 public class FifoEvent implements DocumentEvent, DocumentEvent.ElementChange
 {
 	final public FifoDocument doc;

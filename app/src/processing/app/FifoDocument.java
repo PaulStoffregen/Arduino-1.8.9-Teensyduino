@@ -32,29 +32,54 @@ import javax.swing.event.DocumentListener;
 import javax.swing.event.UndoableEditListener;
 
 /*
-JTextArea stores its text in a Document object.  The default Document
+FifoDocument replaces the Java's AbstractDocument with a very
+limited Document optimized for the Arduino Serial Monitor.  It is
+capable of running with sustained high-speed USB data transfer.
+
+JTextArea stores text in a Document object.  The default Document
 implementation must handle insertion of text at arbitrary locations,
-with custom attibutes (bold, italic, font, color, etc), and also
+with custom attributes (bold, italic, font, color, etc), and also
 removal from arbitrary locations which may partially overlap any
 number of previously inserted pieces of text with differing
-attributes.  To manage this storage, a Document provides a tree of
-Elements which represent the structure of the entire Document.  While
-powerful for handling arbitrary text documents, creating new Element
-objects for each insertion consumes far too much memory and CPU time
-when many millions of relatively small insertions are performed every
-second.
+attributes.
 
-FifoDocument replaces the normal Document with a very limited Document
-optimized for the Arduino Serial Monitor.
+To manage this storage, normally a GapContent class is used.  While
+GapContent's performance is described as "generally cheap" in the
+Java documentation, each insertion or removal of data results in many
+object instances created, updated, and others discarded for later
+Java garbage collection.  When subjected to substantially faster than
+12 Mbit/sec sustained data flow, the net result is far too much CPU
+time consumed, excessive memory use, and far too much load placed on
+Java garbage collection.
 
-Text insertion is only allowed to append to the end of the document.
-Any text removal deletes the entire document.  Text attributes are
-ignored.  UndoableEditListener is not supported.  Only the minimum
-Document features needed by the Arduino Serial Monitor are implemented.
+Unfortunately, Java's AbstractDocument.Content interface is designed
+around the assumption of variable size data storage, which changes in
+size only when functions are called to insert and remove data.  To
+used fixed-size storage and avoid excessive load on Java's garbage
+collection, we must replace the entire Document class.  Fortunately,
+the Document interface provides an event-based notification system
+for changes, which allows FifoDocument to work.
 
-FifoDocument uses a fixed size buffer.  Data is automatically
-discarded by FifoDocument as the Arduino Serial Monitor keeps adding
-more incoming chars, according to 1 of 2 memory management stratagies.
+FifoDocument imposes many limitations.  Text insertion is only allowed
+to append to the end of the document.  Any text removal deletes the
+entire document.  Text attributes are ignored.  UndoableEditListener
+is not supported.  Only the minimum Document features needed by the
+Arduino Serial Monitor are implemented.
+
+FifoDocument uses two fixed size buffers, one for raw character data,
+the other to track which characters belong to which lines.  JTextArea
+requires any Document to provide 1 "root" Element, which gives access
+to Element instances for each line of data.  Java's Element interface
+documentation implies a more complex hierarchy can be used, but for
+the Arduino Serial Monitor we only implement the minimum required 2
+tiers, a single root and a list of all the lines.  FifoDocument also
+implements DocumentEvent, to notify JTextArea of changes, and the
+Position interface which JTextArea uses to track selected text when
+the user clicks and drags their mouse.
+
+Data is automatically discarded by FifoDocument as the Arduino Serial
+Monitor keeps adding more incoming chars, according to 1 of 2 memory
+management strategies.
 
 The "scrolling" strategy automatically discards the oldest buffered
 data when appending would exceed 60% of the buffer full.  During
@@ -72,7 +97,9 @@ access to ALL already-buffered data while reading.
 
 While in "scrolling" mode, we send both INSERT and REMOVE events to
 DocumentListeners.  In "still" mode, only INSERT events are sent.
-CHANGE events are never used, because we do not support attributes.
+
+Position marking is implemented with 64 long counting of the total
+number of characters.  See the comments below for the Position.
 */
 
 public class FifoDocument implements Document
@@ -129,6 +156,22 @@ public class FifoDocument implements Document
 	}
 	public void setScrollingMode(boolean mode) {
 		scrolling = mode;
+	}
+
+// Throughout FifoDocument, the word "offset" means the zero-based location
+// of a character or line, as seen by rest of Arduino.  The words "index",
+// "head" and "tail" mean the physical locations of data inside the fixed
+// size char_buf and line_buf arrays.
+
+	public int charIndexToOffset(int index) {
+		int offset = index - char_tail - 1;
+		if (offset < 0) offset += char_size;
+		return offset;
+	}
+	public int lineIndexToOffset(int index) {
+		int offset = index - line_tail - 1;
+		if (offset < 0) offset += line_size;
+		return offset;
 	}
 
 ////////////////////////////////////////////////////////
@@ -472,16 +515,6 @@ public class FifoDocument implements Document
 		}
 		return list;
 	}
-	public int charIndexToOffset(int index) {
-		int offset = index - char_tail - 1;
-		if (offset < 0) offset += char_size;
-		return offset;
-	}
-	public int lineIndexToOffset(int index) {
-		int offset = index - line_tail - 1;
-		if (offset < 0) offset += line_size;
-		return offset;
-	}
 
 ////////////////////////////////////////////////////////
 // Position support functions
@@ -567,11 +600,10 @@ public class FifoDocument implements Document
 	}
 	public Object getProperty(Object key) {
 		println("Document: getProperty " + key + "   " + key.getClass().getName());
+		// TODO: does this stuff matter?
 		//if (key.toString().equals("i18n")) return false;
 		//if (key.toString().equals("tabSize")) return 4;
-
 		return null;
-		//return false; // "i18n"
 	}
 	public void putProperty(Object key, Object value) {
 		println("Document: putProperty " + key + "  " + value);
@@ -589,7 +621,7 @@ public class FifoDocument implements Document
 	}
 
 ////////////////////////////////////////////////////////
-// Debug printing - everything goes through here
+// Debug printing - (almost) everything goes through here
 ////////////////////////////////////////////////////////
 
 	private void actual_print(String str) {
