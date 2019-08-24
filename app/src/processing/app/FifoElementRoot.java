@@ -18,27 +18,40 @@ public class FifoElementRoot implements Element
 
 	public int getElementCount() {
 		int num = doc.getElementCount();
-		doc.println("ElementRoot: getElementCount -> " + num);
+		doc.println("Root: getElementCount -> " + num);
 		return num;
 	}
 	public Element getElement(int offset) {
-		doc.println("ElementRoot: getElement, offset=" + offset);
+		doc.println("Root: getElement, offset=" + offset);
 		return doc.getElement(offset);
 	}
 	public Document getDocument() {
 		//doc.println("ElementRoot.getDocument");
 		return doc;
 	}
-	public int getElementIndex(int offset) {
-		int i = doc.getElementIndex(offset);
-		doc.println("ElementRoot: getElementIndex, offset=" + offset + " -> index=" + i);
-		return i;
+	public int getElementIndex(int char_offset) {
+		int line_offset = doc.getLineOffset(char_offset);
+		FifoElementLine line = doc.getElement(line_offset);
+		doc.println("Root: getElementIndex, char offset = " + char_offset
+			+ " -> line offset = " + line_offset
+			+ " -> char offset = " + doc.charIndexToOffset(line.getIndex())
+			+ ", len = " + line.getLength());
+		return line_offset;
+	}
+	public int getStartOffset() {
+		doc.println("Root: getStartOffset -> 0");
+		return 0;
+	}
+	public int getEndOffset() {
+		int len = doc.getCharCount();
+		doc.println("Root: getEndOffset -> " + len);
+		return len;
 	}
 
 	// Never used (for root Element)
 
 	public Element getParentElement() {
-		doc.println("ElementRoot: getParentElement");
+		doc.println("Root: getParentElement");
 		return null;
 	}
 	public String getName() {
@@ -46,23 +59,13 @@ public class FifoElementRoot implements Element
 		return "root";
 	}
 	public AttributeSet getAttributes() {
-		doc.println("ElementRoot: getAttributes");
+		doc.println("Root: getAttributes");
 		return null;
 	}
-	public int getStartOffset() {
-		doc.println("ElementRoot: getStartOffset");
-		return 0;
-	}
-	public int getEndOffset() {
-		doc.println("ElementRoot: getEndOffset");
-		int len = doc.getCharCount();
-		//if (len <= 0) return 0;
-		return len;
-	}
 	public boolean isLeaf() {
-		doc.println("ElementRoot: isLeaf");
+		doc.println("Root: isLeaf");
 		return false;
 	}
 }
 
- 
+

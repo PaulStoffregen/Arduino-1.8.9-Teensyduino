@@ -12,7 +12,9 @@ public class FifoPosition implements Position
 		pos = position;
 	}
 	public int getOffset() {
-		return doc.positionToOffset(this);
+		int offset = doc.positionToOffset(this);
+		doc.println("Position: getOffset, pos=" + pos + " -> offset=" + offset);
+		return offset;
 	}
 	public long getPositionNumber() {
 		return pos;

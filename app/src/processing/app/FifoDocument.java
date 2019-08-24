@@ -275,7 +275,6 @@ public class FifoDocument implements Document
 			}
 		}
 
-
 		// copy string contents to char_buf
 		int chead = char_head + 1;
 		if (chead >= char_size) chead = 0;
@@ -365,6 +364,7 @@ public class FifoDocument implements Document
 	public void getText(int offset, int length, Segment txt) throws BadLocationException {
 		println("Document: getText, offset=" + offset + ", len=" + length);
 		if (length < 0 || offset < 0) {
+			System.out.println("FifoDocument.getText *****NEGATIVE NUMBER ERROR*****");
 			throw new BadLocationException("negative input not allowed", 0);
 		}
 		int chartotallen = char_head - char_tail;
@@ -411,16 +411,55 @@ public class FifoDocument implements Document
 		if (index >= line_size) index -= line_size;
 		return line_buf[index];
 	}
-	public int getElementIndex(int offset) {
-		int num = line_head;
-		if (num < 1) return 0;
-		 //System.out.println("getElementIndex: slow linear search");
-		for (int i=0; i < num; i++) { // TODO: binary search
-			int begin = line_buf[i].index;
-			int end = line_buf[i].index + line_buf[i].len - 1;
-			if (offset >= begin && offset <= end)  return i;
+	public int getLineOffset(int char_offset) {
+		// search for the line which contains char_offset
+		if (char_offset <= 0) return 0;
+		int line_offset_linear = getLineOffset_LinearSearch(char_offset);
+		int line_offset_binary = getLineOffset_BinarySearch(char_offset);
+		if (line_offset_binary != line_offset_linear) {
+			System.err.println("Error, FifoDocument line search results differ!");
 		}
-		return num - 1;
+		return line_offset_linear;
+	}
+	private int getLineOffset_LinearSearch(int char_offset) {
+		int line_count = getElementCount();
+		if (line_count < 1) return 0;
+		for(int line_offset = 0; line_offset < line_count; line_offset++) {
+			FifoElementLine line = getElement(line_offset);
+			int line_begin_offset = line.getStartOffset();
+			int line_end_offset = line_begin_offset + line.getLength();
+			if (char_offset >= line_begin_offset && char_offset < line_end_offset) {
+				//System.err.println("found char " + char_offset
+					//+ " at line " + line_offset + " (chars "
+					//+ line_begin_offset + " - "
+					//+ (line_end_offset - 1) + ")");
+				return line_offset;
+			}
+		}
+		return line_count - 1;
+	}
+	private int getLineOffset_BinarySearch(int char_offset) {
+		int begin = 0;
+		int end = getElementCount() - 1;
+		if (end < 1) return 0;
+		while (begin <= end) {
+			int middle = begin + (end - begin) / 2;
+			FifoElementLine line = getElement(middle);
+			int line_begin_offset = line.getStartOffset();
+			int line_end_offset = line_begin_offset + line.getLength();
+			//System.err.println("begin=" + begin + ", middle=" + middle
+				//+ ", end=" + end + " -> chars " + line_begin_offset
+				//+ " - " + (line_end_offset - 1));
+			if (char_offset >= line_begin_offset && char_offset < line_end_offset) {
+				//System.err.println("found at line " + middle);
+				return middle;
+			} else if (char_offset >= line_begin_offset) {
+				begin = middle + 1;
+			} else {
+				end = middle - 1;
+			}
+		}
+		return getElementCount() - 1;
 	}
 	public FifoElementLine[] getElementArray(int offset, int length) {
 		// TODO: should we pre-allocate and reuse this array to avoid garbage collection?
@@ -462,6 +501,8 @@ public class FifoDocument implements Document
 		if (offset == 0) return startPosition;
 		int length = getCharCount();
 		if (offset > length) throw new BadLocationException("beyond end", offset);
+		long pos = char_total - length + offset;
+		println("  offset=" + offset + " -> pos=" + pos);
 		return new FifoPosition(this, char_total - length + offset);
 	}
 	public Position getStartPosition() {
@@ -491,16 +532,19 @@ public class FifoDocument implements Document
 			throw new BadLocationException("access beyond data", offset + length);
 		}
 
+		String s;
 		int index = offset + char_tail + 1;
 		if (index >= char_size) index -= char_size;
 		if (index + length < char_size) {
-			return new String(char_buf, index, length);
+			s = new String(char_buf, index, length);
 		} else {
 			int remain = char_size - index;
 			String s1 = new String(char_buf, index, remain);
 			String s2 = new String(char_buf, 0, length - remain);
-			return s1 + s2;
+			s = s1 + s2;
 		}
+		println("  text=" + s);
+		return s;
 	}
 
 ////////////////////////////////////////////////////////
@@ -523,8 +567,8 @@ public class FifoDocument implements Document
 	}
 	public Object getProperty(Object key) {
 		println("Document: getProperty " + key + "   " + key.getClass().getName());
-		if (key.toString().equals("i18n")) return false;
-		if (key.toString().equals("tabSize")) return 4;
+		//if (key.toString().equals("i18n")) return false;
+		//if (key.toString().equals("tabSize")) return 4;
 
 		return null;
 		//return false; // "i18n"
@@ -548,12 +592,20 @@ public class FifoDocument implements Document
 // Debug printing - everything goes through here
 ////////////////////////////////////////////////////////
 
-	public void print(String str) {
-		//System.out.print(str);
-	}
-	public void println(String str) {
-		//System.out.println(str);
+	private void actual_print(String str) {
+		//System.out.print(str); // comment this line to suppress debug printing
 	}
 
+	private long prior_milliseconds = 0;
+
+	public void print(String str) {
+		long now = System.currentTimeMillis();
+		if (now - prior_milliseconds > 100) actual_print("\n\n");
+		prior_milliseconds = now;
+		actual_print(str);
+	}
+	public void println(String str) {
+		print(str + "\n");
+	}
 }
 
