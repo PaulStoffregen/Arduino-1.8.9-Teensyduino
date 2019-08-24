@@ -21,13 +21,13 @@ import javax.swing.event.DocumentEvent;
 
 public class FifoEvent implements DocumentEvent, DocumentEvent.ElementChange
 {
-	final public FifoDocument doc;
-	final public DocumentEvent.EventType type;
-	int char_offset = 0;
-	int char_length = 0;
-	public int line_offset = 0;
-	public int line_length = 0;
-	Element appended = null;
+	private final FifoDocument doc;
+	private final DocumentEvent.EventType type;
+	private int char_offset = 0;
+	private int char_length = 0;
+	private int line_offset = 0;
+	private int line_length = 0;
+	private Element appended = null;
 
 	public FifoEvent(FifoDocument d, DocumentEvent.EventType t) {
 		doc = d;
@@ -81,31 +81,31 @@ public class FifoEvent implements DocumentEvent, DocumentEvent.ElementChange
 		return line_offset;
 	}
 	public Element[] getChildrenRemoved() {
-		doc.print("EventChange: getChildrenRemoved -> ");
+		//doc.print("EventChange: getChildrenRemoved -> ");
 		if (type != DocumentEvent.EventType.REMOVE) {
-			doc.println("null");
+			//doc.println("null");
 			return null;
 		}
 		FifoElementLine[] array = doc.getElementArray(line_offset, line_length);
-		doc.print("[ ");
-		for (FifoElementLine e : array) {
-			doc.print(e.index + " ");
-		}
-		doc.println("]");
+		//doc.print("[ ");
+		//for (FifoElementLine e : array) {
+			//doc.print(e.getIndex() + " ");
+		//}
+		//doc.println("]");
 		return array;
 	}
 	public Element[] getChildrenAdded() {
-		doc.print("EventChange: getChildrenAdded -> ");
+		//doc.print("EventChange: getChildrenAdded -> ");
 		if (type != DocumentEvent.EventType.INSERT) {
-			doc.println("null");
+			//doc.println("null");
 			return null;
 		}
 		FifoElementLine[] array = doc.getElementArray(line_offset, line_length);
-		doc.print("[ ");
-		for (FifoElementLine e : array) {
-			doc.print(e.n + " ");
-		}
-		doc.println("]");
+		//doc.print("[ ");
+		//for (FifoElementLine e : array) {
+			//doc.print(e.getName() + " ");
+		//}
+		//doc.println("]");
 		return array;
 	}
 

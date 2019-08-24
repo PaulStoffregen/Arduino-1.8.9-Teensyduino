@@ -14,7 +14,7 @@ import javax.swing.text.AttributeSet;
 
 public class FifoElementRoot implements Element
 {
-	final FifoDocument doc;
+	private final FifoDocument doc;
 
 	public FifoElementRoot(FifoDocument d) {
 		doc = d;

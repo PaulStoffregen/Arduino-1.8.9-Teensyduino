@@ -106,25 +106,25 @@ public class FifoDocument implements Document
 {
 	private int char_head;
 	private int char_tail;
-	final private int char_size;
-	final private int char_threshold;
-	private char[] char_buf;
+	private final int char_size;
+	private final int char_threshold;
+	private final char[] char_buf;
 	private long char_total;
 
-	FifoElementRoot line_root;
+	private FifoElementRoot line_root;
 	private int line_head;
 	private int line_tail;
-	final private int line_size;
-	final private int line_threshold;
-	private FifoElementLine[] line_buf;
+	private final int line_size;
+	private final int line_threshold;
+	private final FifoElementLine[] line_buf;
 	private boolean last_line_incomplete;
 
-	private List<DocumentListener> listeners;
+	private final List<DocumentListener> listeners;
 	private boolean scrolling = true;
-	FifoEvent insertEvent;
-	FifoEvent removeEvent;
-	FifoPosition startPosition;
-	FifoPosition endPosition;
+	private final FifoEvent insertEvent;
+	private final FifoEvent removeEvent;
+	private final FifoPosition startPosition;
+	private final FifoPosition endPosition;
 
 	public FifoDocument(int size) {
 		// Allocate the big buffer to hold raw character data
@@ -154,7 +154,7 @@ public class FifoDocument implements Document
 		startPosition = new FifoPosition(this, 0);
 		endPosition = new FifoPosition(this, Long.MAX_VALUE);
 	}
-	public void setScrollingMode(boolean mode) {
+	public synchronized void setScrollingMode(boolean mode) {
 		scrolling = mode;
 	}
 
@@ -163,12 +163,12 @@ public class FifoDocument implements Document
 // "head" and "tail" mean the physical locations of data inside the fixed
 // size char_buf and line_buf arrays.
 
-	public int charIndexToOffset(int index) {
+	public synchronized int charIndexToOffset(int index) {
 		int offset = index - char_tail - 1;
 		if (offset < 0) offset += char_size;
 		return offset;
 	}
-	public int lineIndexToOffset(int index) {
+	public synchronized int lineIndexToOffset(int index) {
 		int offset = index - line_tail - 1;
 		if (offset < 0) offset += line_size;
 		return offset;
@@ -178,7 +178,7 @@ public class FifoDocument implements Document
 // Document Interface - interesting functions
 ////////////////////////////////////////////////////////
 
-	public void insertString(int offs, String s, AttributeSet a) throws BadLocationException {
+	public synchronized void insertString(int offs, String s, AttributeSet a) throws BadLocationException {
 		// TODO: check that offs == total data stored
 		int char_len = s.length();
 		if (char_len <= 0) return;
@@ -338,9 +338,10 @@ public class FifoDocument implements Document
 		if (last_line_incomplete) {
 			npos = s.indexOf('\n');
 			if (npos >= 0) {
-				line_buf[line_head].len += ++npos;
+				npos = npos + 1;
+				line_buf[line_head].increaseLength(npos);
 			} else {
-				line_buf[line_head].len += char_len;
+				line_buf[line_head].increaseLength(char_len);
 			}
 			insertEvent.setAppended(line_buf[line_head]);
 		} else {
@@ -375,7 +376,7 @@ public class FifoDocument implements Document
 			d.insertUpdate(insertEvent);
 		}
 	}
-	public void addLine(int index, int len) {
+	private void addLine(int index, int len) {
 		if (index >= char_size) index -= char_size;
 		line_head++;
 		if (line_head >= line_size) line_head = 0;
@@ -383,7 +384,7 @@ public class FifoDocument implements Document
 		line_buf[line_head].set(index, len);
 	}
 
-	public void remove(int offset, int len) throws BadLocationException {
+	public synchronized void remove(int offset, int len) throws BadLocationException {
 		println("Document: remove, offset=" + offset + ", len=" + len);
 		int char_len = char_head - char_tail;
 		if (char_len == 0) return; // already empty
@@ -404,7 +405,7 @@ public class FifoDocument implements Document
 		last_line_incomplete = false;
 	}
 
-	public void getText(int offset, int length, Segment txt) throws BadLocationException {
+	public synchronized void getText(int offset, int length, Segment txt) throws BadLocationException {
 		println("Document: getText, offset=" + offset + ", len=" + length);
 		if (length < 0 || offset < 0) {
 			System.out.println("FifoDocument.getText *****NEGATIVE NUMBER ERROR*****");
@@ -429,12 +430,12 @@ public class FifoDocument implements Document
 		}
 		println("  text=" + txt.toString());
 	}
-	public int getCharCount() {
+	public synchronized int getCharCount() {
 		int len = char_head - char_tail;
 		if (len < 0) len += char_size;
 		return len;
 	}
-	public int getLength() {
+	public synchronized int getLength() {
 		int len = getCharCount();
 		println("Document: getLength -> " + len);
 		return len;
@@ -444,17 +445,17 @@ public class FifoDocument implements Document
 // Element support functions
 ////////////////////////////////////////////////////////
 
-	public int getElementCount() {
+	public synchronized int getElementCount() {
 		int len = line_head - line_tail;
 		if (len < 0) len += line_size;
 		return len;
 	}
-	public FifoElementLine getElement(int offset) {
+	public synchronized FifoElementLine getElement(int offset) {
 		int index = offset + line_tail + 1;
 		if (index >= line_size) index -= line_size;
 		return line_buf[index];
 	}
-	public int getLineOffset(int char_offset) {
+	public synchronized int getLineOffset(int char_offset) {
 		// search for the line which contains char_offset
 		if (char_offset <= 0) return 0;
 		int line_offset_linear = getLineOffset_LinearSearch(char_offset);
@@ -504,7 +505,7 @@ public class FifoDocument implements Document
 		}
 		return getElementCount() - 1;
 	}
-	public FifoElementLine[] getElementArray(int offset, int length) {
+	public synchronized FifoElementLine[] getElementArray(int offset, int length) {
 		// TODO: should we pre-allocate and reuse this array to avoid garbage collection?
 		FifoElementLine[] list = new FifoElementLine[length];
 		int index = offset + line_tail + 1;
@@ -528,7 +529,7 @@ public class FifoDocument implements Document
 	// Positions are created by simply recording the 64 bit absolute position
 	// within the entire history of the data stream.
 
-	public Position createPosition(int offset) throws BadLocationException {
+	public synchronized Position createPosition(int offset) throws BadLocationException {
 		println("Document: createPosition");
 		if (offset < 0) throw new BadLocationException("negative input not allowed", 0);
 		if (offset == 0) return startPosition;
@@ -546,7 +547,7 @@ public class FifoDocument implements Document
 		println("Document: getEndPosition");
 		return endPosition;
 	}
-	public int positionToOffset(FifoPosition p) {
+	public synchronized int positionToOffset(FifoPosition p) {
 		long location = p.getPositionNumber();
 		int length = getCharCount();
 		long first_location = char_total - length;
@@ -554,7 +555,7 @@ public class FifoDocument implements Document
 		if (location >= char_total) return length - 1;
 		return (int)(location - first_location);
 	}
-	public String getText(int offset, int length) throws BadLocationException {
+	public synchronized String getText(int offset, int length) throws BadLocationException {
 		println("Document: getText (String), offset=" + offset + ", len=" + length);
 		if (length < 0 || offset < 0) {
 			throw new BadLocationException("negative input not allowed", 0);

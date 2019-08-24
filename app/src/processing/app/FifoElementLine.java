@@ -15,10 +15,10 @@ import javax.swing.text.AttributeSet;
 
 public class FifoElementLine implements Element
 {
-	public final FifoDocument doc;
-	public final int n;
-	public int index;
-	public int len;
+	private FifoDocument doc;
+	private final int n;
+	private int index;
+	private int len;
 
 	public FifoElementLine(FifoDocument d, int i) {
 		doc = d;
@@ -63,6 +63,9 @@ public class FifoElementLine implements Element
 	}
 	public int getIndex() {
 		return index;
+	}
+	public void increaseLength(int adder) {
+		len += adder;
 	}
 
 	// Never used (for leaf / line Elements)
