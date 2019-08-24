@@ -22,6 +22,9 @@ import processing.app.PreferencesData;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import javax.swing.UIManager;
+import javax.swing.UIDefaults;
+import java.awt.Color;
 import java.io.File;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -154,13 +157,31 @@ public class TeensyPipeMonitor extends AbstractTextMonitor {
 		if (debug) System.out.println("opened, dev=" + device + ", name=" + usbtype);
 		textArea.setText("");
 		setTitle(device + " (" + teensyname + ") " + usbtype);
+		textArea.setForeground(null);
+		textArea.setBackground(null);
 		enableWindow(true);
 	}
 
 	public void disconnect() {
 		if (debug) System.out.println("disconnect");
 		setTitle("[offline] (" + teensyname + ")");
+		//UIDefaults ui = UIManager.getDefaults(); // more trouble than it's worth??
+		Color fg=null, bg=null;
+		//fg = ui.getColor("TextArea.inactiveForeground");
+		//if (fg == null) fg = ui.getColor("TextField.inactiveForeground");
+		//if (fg == null) fg = ui.getColor("TextPane.inactiveForeground");
+		if (fg == null) fg = new Color(80, 80, 80);
+		//bg = ui.getColor("TextArea.inactiveBackground");
+		//if (bg == null) bg = ui.getColor("TextField.inactiveBackground");
+		//if (bg == null) bg = ui.getColor("TextPane.inactiveBackground");
+		if (bg == null) bg = new Color(248, 248, 248);
 		enableWindow(false);
+		//System.out.println("disabled foreground = " + fg);
+		//System.out.println("disabled background = " + bg);
+		textArea.setEnabled(true);  // enable so users can copy text to clipboard
+		textArea.setForeground(fg);
+		textArea.setBackground(bg); // but try to make it look sort-of disabled
+		textArea.invalidate();
 	}
 };
 
