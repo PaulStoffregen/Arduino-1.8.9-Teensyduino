@@ -118,6 +118,7 @@ public class FifoDocument implements Document
 	private final int line_threshold;
 	private final FifoElementLine[] line_buf;
 	private boolean last_line_incomplete;
+	private final int newline_offset[];
 
 	private final List<DocumentListener> listeners;
 	private boolean scrolling = true;
@@ -145,6 +146,7 @@ public class FifoDocument implements Document
 		for (int i=0; i < line_size; i++) {
 			line_buf[i] = new FifoElementLine(this, i);
 		}
+		newline_offset = new int[char_size - char_threshold];
 		last_line_incomplete = false;
 
 		// Allocate other misc stuff
@@ -173,6 +175,181 @@ public class FifoDocument implements Document
 		if (offset < 0) offset += line_size;
 		return offset;
 	}
+
+////////////////////////////////////////////////////////
+// Direct Append
+////////////////////////////////////////////////////////
+
+	public char[] getBuffer() {
+		return char_buf;
+	}
+	public synchronized int getAppendIndex() {
+		int head = char_head + 1;
+		if (head >= char_size) head = 0;
+		return head;
+	}
+	public synchronized int getAvailableToAppend() {
+		int head = char_head + 1;
+		if (head >= char_size) head = 0;
+		int tail = char_tail + 1;
+		if (tail >= char_size) tail = 0;
+		int available;
+		if (head < tail) {
+			// free space is from head to tail-1
+			available = tail - head - 1;
+		} else {
+			// free space is from head to end of buffer
+			available = char_size - head;
+		}
+		if (available > char_size - char_threshold) {
+			available = char_size - char_threshold;
+		}
+		// TODO: if not scolling and last line is complete
+		//       and line count is at line threshold, return 0
+		return available;
+	}
+	public synchronized void processAppended(int char_len) {
+
+		int chead = char_head + 1;
+		if (chead >= char_size) chead = 0;
+
+		// count how many lines this new data adds, and record their offsets
+		int newline_count = 0;
+		for (int i=0; i < char_len; i++) {
+			if (char_buf[chead + i] == '\n') newline_offset[newline_count++] = i;
+		}
+		int line_len = newline_count;
+		if (last_line_incomplete && line_len > 0) line_len--;
+
+		if (scrolling) {
+			// scrolling mode: delete old data as needed to stay under thresholds
+			int char_count = getCharCount();
+			int line_count = getElementCount();
+
+			int ctail = char_tail;
+			int ctail_begin = ctail + 1; // index of 1st deleted char
+			if (ctail_begin >= char_size) ctail_begin = 0;
+			int cdelete = 0;             // number of chars deleted
+
+			int ltail = line_tail;
+			int ltail_begin = ltail + 1; // index of 1st deleted line
+			if (ltail_begin >= line_size) ltail_begin = 0;
+			int ldelete = 0;             // number of lines deleted
+
+			FifoElementLine shortened = null;
+
+			// step 1: delete old lines until not over line_threshold
+			int lines_to_delete = line_count + line_len - line_threshold;
+			if (lines_to_delete > 0) {
+				println("delete step #1, " + lines_to_delete + " lines");
+				ldelete = lines_to_delete;
+				line_count -= lines_to_delete;
+				do {
+					if (++ltail >= line_size) ltail = 0;
+					int len = line_buf[ltail].getLength();
+					ctail += len;
+					if (ctail >= char_size) ctail -= char_size;
+					char_count -= len;
+					cdelete += len;
+				} while (--lines_to_delete > 0);
+			}
+
+			// step 2: keep deleting old lines until not over char_threshold
+			while ((char_count + char_len > char_threshold) && (line_count > 1)) {
+				if (++ltail >= line_size) ltail = 0;
+				int len = line_buf[ltail].getLength();
+				println("delete step #2, line with " + len + " chars");
+				ctail += len;
+				if (ctail >= char_size) ctail -= char_size;
+				char_count -= len;
+				cdelete += len;
+				line_count--;
+				ldelete++;
+			}
+
+			// step 3: if still over char_threshold with only 1 last line, shorten it
+			int chars_to_delete = char_count + char_len - char_threshold;
+			if (chars_to_delete > 0) {
+				println("delete step #3, shorten last line by " + chars_to_delete + " chars");
+				int last = ltail + 1;
+				if (last >= line_size) last = 0;
+				shortened = line_buf[last];
+				int index = shortened.getIndex();
+				int len = shortened.getLength();
+				index += chars_to_delete;
+				if (index >= char_size) index -= char_size;
+				len -= chars_to_delete;
+				shortened.set(index, len);
+				ctail += chars_to_delete;
+				if (ctail >= char_size) ctail -= char_size;
+				char_count -= chars_to_delete;
+				cdelete += chars_to_delete;
+			}
+
+			// if anything was deleted, transmit a remove event
+			if (cdelete > 0 || ldelete > 0) {
+				char_tail = ctail;
+				line_tail = ltail;
+				removeEvent.setLineRange(ltail_begin, ldelete);
+				removeEvent.setCharRange(ctail_begin, cdelete);
+				removeEvent.setAppended(shortened);
+				for (DocumentListener d : listeners) {
+					d.removeUpdate(removeEvent);
+				}
+			}
+		} else {
+			// need to make sure all these new lines can fit.
+			int line_count = getElementCount();
+			if (line_count + line_len >= line_size) {
+				// TODO: truncate input to only lines which fit
+
+				return; // ugly kludge for now, just discard everything new
+			}
+		}
+
+		// new data is now considered part of the buffer, advance head index
+		char_head += char_len;
+		if (char_head >= char_size) char_head -= char_size;
+		char_total += char_len;
+
+		// add text to last line
+		int npos = 0;
+		if (last_line_incomplete) {
+			if (newline_count > 0) {
+				npos = newline_offset[0] + 1;
+				line_buf[line_head].increaseLength(npos);
+			} else {
+				line_buf[line_head].increaseLength(char_len);
+			}
+			insertEvent.setAppended(line_buf[line_head]);
+		} else {
+			insertEvent.setAppended(null);
+		}
+
+		// add lines to Element list
+		int lhead = line_head + 1;
+		if (lhead > line_size) lhead = 0;
+		for (int i = (last_line_incomplete ? 1 : 0); i < newline_count; i++) {
+			addLine(chead + npos, newline_offset[i] - npos + 1);
+			npos = newline_offset[i] + 1;
+		}
+		// add remaining text as last incomplete line
+		if (npos >= char_len) {
+			last_line_incomplete = false;
+		} else {
+			addLine(chead + npos, char_len - npos);
+			last_line_incomplete = true;
+		}
+
+		// transmit insert event
+		insertEvent.setCharRange(charIndexToOffset(chead), char_len);
+		insertEvent.setLineRange(lineIndexToOffset(lhead), line_len);
+		for (DocumentListener d : listeners) {
+			d.insertUpdate(insertEvent);
+		}
+
+	}
+
 
 ////////////////////////////////////////////////////////
 // Document Interface - interesting functions

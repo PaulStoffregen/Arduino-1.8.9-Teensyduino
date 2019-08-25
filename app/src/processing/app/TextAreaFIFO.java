@@ -36,7 +36,7 @@ import javax.swing.text.BadLocationException;
 
 public class TextAreaFIFO extends JTextArea {
 
-  private final FifoDocument doc;
+  public final FifoDocument doc;
 
   public TextAreaFIFO(int max) {
     doc = new FifoDocument(max);

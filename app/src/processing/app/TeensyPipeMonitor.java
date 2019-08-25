@@ -183,26 +183,43 @@ public class TeensyPipeMonitor extends AbstractTextMonitor {
 		textArea.setBackground(bg); // but try to make it look sort-of disabled
 		textArea.invalidate();
 	}
-};
+}
 
-class inputPipeListener extends Thread {
+
+class inputPipeListener extends Thread
+{
 	InputStream input;
 	TeensyPipeMonitor output;
+	Timer updateTimer;
 
 	public void run() {
-		char[] buffer = new char[65536];
-		// UTF8 in Arduino's strings seems to get displayed correctly without this, but why?
-		//CharsetDecoder decoder = Charset.forName("UTF-8").newDecoder();
-		//decoder.onMalformedInput(CodingErrorAction.REPLACE);
-		//decoder.onUnmappableCharacter(CodingErrorAction.REPLACE);
-		//BufferedReader reader = new BufferedReader(new InputStreamReader(input, decoder));
-		BufferedReader reader = new BufferedReader(new InputStreamReader(input));
+		final FifoDocument doc = output.textArea.doc;
+		final char[] buffer = doc.getBuffer();
+		InputStreamReader reader = new InputStreamReader(input);
+		//BufferedReader reader = new BufferedReader(new InputStreamReader(input));
 		try {
 			while (true) {
-				int num = reader.read(buffer, 0, buffer.length);
-				if (num == -1) break;
-				//System.out.println("inputPipeListener, num=" + num);
-				output.addToUpdateBuffer(buffer, num);
+				int offset = doc.getAppendIndex();
+				int length = doc.getAvailableToAppend();
+				int n = 0;
+				int target = 1000000;
+				if (target > length) target = length;
+				long begin = System.currentTimeMillis();
+
+				while (n < target) {
+					if (reader.ready()) {
+						int r = reader.read(buffer, offset + n, length - n);
+						if (r > 0) {
+							n += r;
+						}
+					} else {
+						sleep(1);
+					}
+					if (n > 0 && System.currentTimeMillis() - begin >= 33) {
+						break;
+					}
+				}
+				doc.processAppended(n);
 			}
 		} catch (Exception e) {
 			System.out.println("inputPipeListener exception: " + e);
@@ -213,11 +230,12 @@ class inputPipeListener extends Thread {
 		} catch (Exception e) {
 			output.disconnect();
 		}
-		// System.out.println("inputPipeListener thread exit");
+		System.out.println("inputPipeListener thread exit");
 	}
 }
 
-class errorPipeListener extends Thread {
+class errorPipeListener extends Thread
+{
 	InputStream input;
 	TeensyPipeMonitor output;
 
