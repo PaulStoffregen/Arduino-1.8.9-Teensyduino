@@ -180,14 +180,12 @@ public abstract class AbstractTextMonitor extends AbstractMonitor {
   private boolean isStartingLine = true;
 
   protected void updateTextArea(String msg) {
-    boolean autoScrollMode = autoscrollBox.isSelected();
-    textArea.setScolling(autoScrollMode);
     if (addTimeStampBox.isSelected()) {
       textArea.append(addTimestamps(msg));
     } else {
       textArea.append(msg);
     }
-    if (autoScrollMode) {
+    if (autoscrollBox.isSelected()) {
       textArea.setCaretPosition(textArea.getDocument().getLength());
     }
   }

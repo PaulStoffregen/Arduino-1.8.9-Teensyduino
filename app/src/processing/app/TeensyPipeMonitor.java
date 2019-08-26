@@ -202,16 +202,40 @@ class inputPipeListener extends Thread
 			while (true) {
 				int offset = doc.getAppendIndex();
 				int length = doc.getAvailableToAppend();
-				int n = 0;
-				int target = 1000000;
+				if (length <= 0) {
+					// fifo is full, so we must discard input
+					if (reader.ready()) {
+						long discard = reader.skip(1000000);
+					} else {
+						try {
+							sleep(1);
+						} catch (Exception e) {
+						}
+					}
+					if (output.autoscrollBox.isSelected()) {
+						// if AutoScroll is on and buffer is full
+						// cause FifoDocument to free some space
+						doc.setScrollingMode(true);
+						doc.processAppended(0);
+					}
+					continue;
+				}
+				int count = 0;
+				int target = 500000;
 				if (target > length) target = length;
 				long begin = System.currentTimeMillis();
 
-				while (n < target) {
+				while (count < target) {
 					if (reader.ready()) {
-						int r = reader.read(buffer, offset + n, length - n);
+						int to_read = length - count;
+						if (to_read > 32768) {
+							// limit read size, helps keep slow
+							// computers more responsive
+							to_read = 32768;
+						}
+						int r = reader.read(buffer, offset + count, to_read);
 						if (r > 0) {
-							n += r;
+							count += r;
 						}
 					} else {
 						try {
@@ -219,11 +243,14 @@ class inputPipeListener extends Thread
 						} catch (Exception e) {
 						}
 					}
-					if (n > 0 && System.currentTimeMillis() - begin >= 33) {
+					if (count > 0 && System.currentTimeMillis() - begin >= 33) {
 						break;
 					}
 				}
-				doc.processAppended(n);
+				boolean scroll = output.autoscrollBox.isSelected();
+				doc.setScrollingMode(scroll);
+				doc.processAppended(count);
+				if (scroll) output.textArea.setCaretPosition(doc.getLength());
 			}
 		} catch (Exception e) {
 			System.out.println("inputPipeListener exception: " + e);

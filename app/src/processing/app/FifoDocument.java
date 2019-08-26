@@ -209,7 +209,7 @@ public class FifoDocument implements Document
 		return available;
 	}
 	public synchronized void processAppended(int char_len) {
-
+		//System.out.println("processAppended, len = " + char_len);
 		int chead = char_head + 1;
 		if (chead >= char_size) chead = 0;
 
@@ -258,7 +258,9 @@ public class FifoDocument implements Document
 			while ((char_count + char_len > char_threshold) && (line_count > 1)) {
 				if (++ltail >= line_size) ltail = 0;
 				int len = line_buf[ltail].getLength();
-				println("delete step #2, line with " + len + " chars");
+				println("delete step #2, line with " + len
+					+ " chars, lines=" + line_count + ", chars=" + char_count
+					+ ", thres=" + char_threshold + ", clen=" + char_len);
 				ctail += len;
 				if (ctail >= char_size) ctail -= char_size;
 				char_count -= len;
@@ -306,6 +308,7 @@ public class FifoDocument implements Document
 				return; // ugly kludge for now, just discard everything new
 			}
 		}
+		if (char_len <= 0) return;
 
 		// new data is now considered part of the buffer, advance head index
 		char_head += char_len;
@@ -356,6 +359,7 @@ public class FifoDocument implements Document
 ////////////////////////////////////////////////////////
 
 	public synchronized void insertString(int offs, String s, AttributeSet a) throws BadLocationException {
+/*
 		// TODO: check that offs == total data stored
 		int char_len = s.length();
 		if (char_len <= 0) return;
@@ -552,6 +556,7 @@ public class FifoDocument implements Document
 		for (DocumentListener d : listeners) {
 			d.insertUpdate(insertEvent);
 		}
+*/
 	}
 	private void addLine(int index, int len) {
 		if (index >= char_size) index -= char_size;

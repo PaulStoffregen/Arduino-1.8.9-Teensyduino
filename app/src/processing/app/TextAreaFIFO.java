@@ -55,11 +55,6 @@ public class TextAreaFIFO extends JTextArea implements DocumentListener {
     return fifo;
   }
 
-  public void setScolling(boolean mode) {
-    if (fifo == null) return;
-    fifo.setScrollingMode(mode);
-  }
-
   public void insertUpdate(DocumentEvent e) {
     if (++updateCount > 150 && doTrim) {
       updateCount = 0;
