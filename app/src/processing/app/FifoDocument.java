@@ -580,10 +580,8 @@ public class FifoDocument implements Document
 		for (DocumentListener d : listeners) {
 			d.removeUpdate(removeEvent);
 		}
-		char_head = 0;
-		char_tail = 0;
-		line_head = 0;
-		line_tail = 0;
+		char_tail = char_head;
+		line_tail = line_head;
 		last_line_incomplete = false;
 	}
 
