@@ -640,12 +640,15 @@ public class FifoDocument implements Document
 	public synchronized int getLineOffset(int char_offset) {
 		// search for the line which contains char_offset
 		if (char_offset <= 0) return 0;
+		return getLineOffset_BinarySearch(char_offset);
+		/*
 		int line_offset_linear = getLineOffset_LinearSearch(char_offset);
 		int line_offset_binary = getLineOffset_BinarySearch(char_offset);
 		if (line_offset_binary != line_offset_linear) {
 			System.err.println("Error, FifoDocument line search results differ!");
 		}
 		return line_offset_linear;
+		*/
 	}
 	private int getLineOffset_LinearSearch(int char_offset) {
 		int line_count = getElementCount();
