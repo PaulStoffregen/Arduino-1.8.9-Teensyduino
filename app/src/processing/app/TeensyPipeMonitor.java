@@ -47,6 +47,7 @@ public class TeensyPipeMonitor extends AbstractTextMonitor {
 
 	public TeensyPipeMonitor(BoardPort port) {
 		super(port);
+		textArea.setFifo(new FifoDocument(12000000));
 		if (debug) System.out.println("TeensyPipeMonitor ctor, port=" + port.getAddress());
 		String[] pieces = port.getLabel().trim().split("[\\(\\)]");
 		if (pieces.length > 2 && pieces[1].startsWith("Teensy")) {
@@ -193,7 +194,7 @@ class inputPipeListener extends Thread
 	Timer updateTimer;
 
 	public void run() {
-		final FifoDocument doc = output.textArea.doc;
+		final FifoDocument doc = output.textArea.getFifo();
 		final char[] buffer = doc.getBuffer();
 		InputStreamReader reader = new InputStreamReader(input);
 		//BufferedReader reader = new BufferedReader(new InputStreamReader(input));
@@ -213,7 +214,10 @@ class inputPipeListener extends Thread
 							n += r;
 						}
 					} else {
-						sleep(1);
+						try {
+							sleep(1);
+						} catch (Exception e) {
+						}
 					}
 					if (n > 0 && System.currentTimeMillis() - begin >= 33) {
 						break;

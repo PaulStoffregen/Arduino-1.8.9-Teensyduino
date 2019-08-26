@@ -16,34 +16,93 @@
   Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+// adapted from https://community.oracle.com/thread/1479784
+
 package processing.app;
 
 import javax.swing.JTextArea;
 import javax.swing.SwingUtilities;
-import javax.swing.text.Document;
-import javax.swing.text.PlainDocument;
-import javax.swing.text.AttributeSet;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.text.BadLocationException;
 
-// Previously TextAreaFIFO was responsible for automatically trimming
-// old buffered data.  Now FifoDocument is responsible for managing
-// the FIFO.  But FifoDocument needs to know if the serial monitor
-// AutoScroll button is active, so this TextAreaFIFO class still
-// exists only to instantiate FifoDocument and pass it the state of
-// the AutoScroll button.
+public class TextAreaFIFO extends JTextArea implements DocumentListener {
+  private int maxChars;
+  private int trimMaxChars;
 
-public class TextAreaFIFO extends JTextArea {
+  private int updateCount; // limit how often we trim the document
 
-  public final FifoDocument doc;
+  private boolean doTrim;
+  private FifoDocument fifo;
 
   public TextAreaFIFO(int max) {
-    doc = new FifoDocument(max);
+    maxChars = max;
+    trimMaxChars = max / 2;
+    updateCount = 0;
+    doTrim = true;
+    fifo = null;
+    getDocument().addDocumentListener(this);
+  }
+
+  public void setFifo(FifoDocument doc) {
+    getDocument().removeDocumentListener(this);
+    doTrim = false;
+    fifo = doc;
     setDocument(doc);
   }
 
+  public FifoDocument getFifo() {
+    return fifo;
+  }
+
   public void setScolling(boolean mode) {
-    doc.setScrollingMode(mode);
+    if (fifo == null) return;
+    fifo.setScrollingMode(mode);
+  }
+
+  public void insertUpdate(DocumentEvent e) {
+    if (++updateCount > 150 && doTrim) {
+      updateCount = 0;
+      SwingUtilities.invokeLater(new Runnable() {
+        public void run() {
+          trimDocument();
+        }
+      });
+    }
+  }
+
+  public void removeUpdate(DocumentEvent e) {
+  }
+
+  public void changedUpdate(DocumentEvent e) {
+  }
+
+  public void trimDocument() {
+    int len = 0;
+    len = getDocument().getLength();
+    if (len > trimMaxChars) {
+      int n = len - trimMaxChars;
+      //System.out.println("trimDocument: remove " + n + " chars");
+      try {
+        getDocument().remove(0, n);
+      } catch (BadLocationException ble) {
+      }
+    }
+  }
+
+  public void appendNoTrim(String s) {
+    int free = maxChars - getDocument().getLength();
+    if (free <= 0)
+      return;
+    if (s.length() > free)
+      append(s.substring(0, free));
+    else
+      append(s);
+    doTrim = false;
+  }
+
+  public void appendTrim(String str) {
+    append(str);
+    doTrim = true;
   }
 }
