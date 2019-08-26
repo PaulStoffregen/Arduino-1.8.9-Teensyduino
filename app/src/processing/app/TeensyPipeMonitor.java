@@ -24,6 +24,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import javax.swing.UIManager;
 import javax.swing.UIDefaults;
+import javax.swing.SwingUtilities;
 import java.awt.Color;
 import java.io.File;
 import java.io.InputStream;
@@ -191,10 +192,10 @@ class inputPipeListener extends Thread
 {
 	InputStream input;
 	TeensyPipeMonitor output;
-	Timer updateTimer;
+	FifoDocument doc;
 
 	public void run() {
-		final FifoDocument doc = output.textArea.getFifo();
+		doc = output.textArea.getFifo();
 		final char[] buffer = doc.getBuffer();
 		InputStreamReader reader = new InputStreamReader(input);
 		//BufferedReader reader = new BufferedReader(new InputStreamReader(input));
@@ -215,8 +216,7 @@ class inputPipeListener extends Thread
 					if (output.autoscrollBox.isSelected()) {
 						// if AutoScroll is on and buffer is full
 						// cause FifoDocument to free some space
-						doc.setScrollingMode(true);
-						doc.processAppended(0);
+						update_gui(0, true);
 					}
 					continue;
 				}
@@ -248,8 +248,7 @@ class inputPipeListener extends Thread
 					}
 				}
 				boolean scroll = output.autoscrollBox.isSelected();
-				doc.setScrollingMode(scroll);
-				doc.processAppended(count);
+				update_gui(count, scroll);
 				if (scroll) output.textArea.setCaretPosition(doc.getLength());
 			}
 		} catch (Exception e) {
@@ -262,6 +261,28 @@ class inputPipeListener extends Thread
 			output.disconnect();
 		}
 		System.out.println("inputPipeListener thread exit");
+	}
+	private void update_gui(int chars_added, boolean auto_scroll) {
+		// TODO: perhaps we can preprocess the data on this thread
+		// where the preprocessing step would compute the newline
+		// offsets and advance the head pointer.  Then we could
+		// call invokeLater rather than having to wait.  The only
+		// reason we must wait is doc.getAppendIndex() and
+		// doc.getAvailableToAppend() will return wrong info and
+		// we would clobber this data with the next incoming data.
+		final Runnable do_update = new Runnable() {
+			public void run() {
+				doc.setScrollingMode(auto_scroll);
+				doc.processAppended(chars_added);
+			}
+		};
+		try {
+			// https://www.javamex.com/tutorials/threads/invokelater.shtml
+			SwingUtilities.invokeAndWait(do_update);
+		} catch (Exception e) {
+			System.err.println("ERROR: GUI update failed");
+			e.printStackTrace();
+		}
 	}
 }
 
