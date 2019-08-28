@@ -39,7 +39,8 @@ import static processing.app.I18n.tr;
 
 public class TeensyPipeMonitor extends AbstractTextMonitor {
 
-	private final boolean debug = false;
+	//private final boolean debug = false;
+	private final boolean debug = true;
 	private String teensyname=null;
 	private String openport=null;
 	Process program=null;
@@ -195,12 +196,13 @@ class inputPipeListener extends Thread
 	FifoDocument doc;
 
 	public void run() {
+		setName("TeensyPipeMonitor inputPipeListener");
 		doc = output.textArea.getFifo();
 		final char[] buffer = doc.getBuffer();
 		InputStreamReader reader = new InputStreamReader(input);
 		//BufferedReader reader = new BufferedReader(new InputStreamReader(input));
 		try {
-			while (true) {
+			while (output.program != null) {
 				int offset = doc.getAppendIndex();
 				int length = doc.getAvailableToAppend();
 				if (length <= 0) {
@@ -208,10 +210,10 @@ class inputPipeListener extends Thread
 					if (reader.ready()) {
 						long discard = reader.skip(1000000);
 					} else {
-						try {
+						//try {
 							sleep(1);
-						} catch (Exception e) {
-						}
+						//} catch (Exception e) {
+						//}
 					}
 					if (output.autoscrollBox.isSelected()) {
 						// if AutoScroll is on and buffer is full
@@ -238,10 +240,10 @@ class inputPipeListener extends Thread
 							count += r;
 						}
 					} else {
-						try {
+						//try {
 							sleep(1);
-						} catch (Exception e) {
-						}
+						//} catch (Exception e) {
+						//}
 					}
 					if (count > 0 && System.currentTimeMillis() - begin >= 33) {
 						break;
@@ -253,14 +255,18 @@ class inputPipeListener extends Thread
 			}
 		} catch (Exception e) {
 			System.out.println("inputPipeListener exception: " + e);
-			e.printStackTrace();
+			//e.printStackTrace();
+		} finally {
+			try {
+				output.close();
+			} catch (Exception e) {
+				output.disconnect();
+			}
+			input = null;
+			output = null;
+			doc = null;
+			System.out.println("inputPipeListener thread exit");
 		}
-		try {
-			output.close();
-		} catch (Exception e) {
-			output.disconnect();
-		}
-		System.out.println("inputPipeListener thread exit");
 	}
 	private void update_gui(int chars_added, boolean auto_scroll) {
 		// TODO: perhaps we can preprocess the data on this thread
@@ -276,12 +282,21 @@ class inputPipeListener extends Thread
 				doc.processAppended(chars_added);
 			}
 		};
-		try {
-			// https://www.javamex.com/tutorials/threads/invokelater.shtml
-			SwingUtilities.invokeAndWait(do_update);
-		} catch (Exception e) {
-			System.err.println("ERROR: GUI update failed");
-			e.printStackTrace();
+		int retry = 0;
+		while (true) {
+			try {
+				// https://www.javamex.com/tutorials/threads/invokelater.shtml
+				SwingUtilities.invokeAndWait(do_update);
+				return;
+			} catch (InterruptedException e) {
+				System.err.println("GUI update interrupted");
+				if (output.program == null) return;
+				if (++retry > 4) return;
+			} catch (Exception e) {
+				System.err.println("ERROR: GUI update failed");
+				e.printStackTrace();
+				break;
+			}
 		}
 	}
 }
@@ -292,10 +307,11 @@ class errorPipeListener extends Thread
 	TeensyPipeMonitor output;
 
 	public void run() {
+		setName("TeensyPipeMonitor errorPipeListener");
 		InputStreamReader reader = new InputStreamReader(input);
 		BufferedReader in = new BufferedReader(reader);
 		try {
-			while (true) {
+			while (output.program != null) {
 				String line = in.readLine();
 				//System.err.print("line: ");
 				if (line.startsWith("Opened ")) {
@@ -309,8 +325,12 @@ class errorPipeListener extends Thread
 					System.err.println(line);
 				}
 			}
-		} catch (Exception e) { }
-		// System.out.println("errorPipeListener thread exit");
+		} catch (Exception e) {
+		} finally {
+			input = null;
+			output = null;
+			System.out.println("errorPipeListener thread exit");
+		}
 	}
 
 }
