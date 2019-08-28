@@ -108,7 +108,7 @@ public class FifoDocument implements Document
 	private int char_tail;
 	private final int char_size;
 	private final int char_threshold;
-	private final char[] char_buf;
+	private char[] char_buf;
 	private long char_total;
 
 	private FifoElementRoot line_root;
@@ -116,9 +116,9 @@ public class FifoDocument implements Document
 	private int line_tail;
 	private final int line_size;
 	private final int line_threshold;
-	private final FifoElementLine[] line_buf;
+	private FifoElementLine[] line_buf;
 	private boolean last_line_incomplete;
-	private final int newline_offset[];
+	private int newline_offset[];
 
 	private final List<DocumentListener> listeners;
 	private boolean scrolling = true;
@@ -158,6 +158,14 @@ public class FifoDocument implements Document
 	}
 	public synchronized void setScrollingMode(boolean mode) {
 		scrolling = mode;
+	}
+	public synchronized void free() {
+		char_head = char_tail = 0;
+		line_head = line_tail = 0;
+		char_buf = null;
+		line_buf = null;
+		newline_offset = null;
+		System.gc();
 	}
 
 // Throughout FifoDocument, the word "offset" means the zero-based location

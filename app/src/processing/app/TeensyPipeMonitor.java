@@ -22,9 +22,12 @@ import processing.app.PreferencesData;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import javax.swing.UIManager;
 import javax.swing.UIDefaults;
 import javax.swing.SwingUtilities;
+import javax.swing.JFrame;
 import java.awt.Color;
 import java.io.File;
 import java.io.InputStream;
@@ -49,7 +52,7 @@ public class TeensyPipeMonitor extends AbstractTextMonitor {
 
 	public TeensyPipeMonitor(BoardPort port) {
 		super(port);
-		textArea.setFifo(new FifoDocument(12000000));
+		textArea.setFifo(new FifoDocument(10000000));
 		if (debug) System.out.println("TeensyPipeMonitor ctor, port=" + port.getAddress());
 		String[] pieces = port.getLabel().trim().split("[\\(\\)]");
 		if (pieces.length > 2 && pieces[1].startsWith("Teensy")) {
@@ -85,6 +88,13 @@ public class TeensyPipeMonitor extends AbstractTextMonitor {
 					}
 				}
 				textField.setText("");
+			}
+		});
+		//setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
+		addWindowListener(new WindowAdapter() {
+			@Override
+			public void windowClosing(WindowEvent event) {
+				window_close();
 			}
 		});
 	}
@@ -186,6 +196,13 @@ public class TeensyPipeMonitor extends AbstractTextMonitor {
 		textArea.setBackground(bg); // but try to make it look sort-of disabled
 		textArea.invalidate();
 	}
+
+	public void window_close() {
+		System.out.println("window_close");
+		textArea.getFifo().free();
+		dispose();
+		((JFrame)SwingUtilities.getRoot(this)).dispose();
+	}
 }
 
 
@@ -210,10 +227,7 @@ class inputPipeListener extends Thread
 					if (reader.ready()) {
 						long discard = reader.skip(1000000);
 					} else {
-						//try {
-							sleep(1);
-						//} catch (Exception e) {
-						//}
+						sleep(1);
 					}
 					if (output.autoscrollBox.isSelected()) {
 						// if AutoScroll is on and buffer is full
@@ -227,7 +241,7 @@ class inputPipeListener extends Thread
 				if (target > length) target = length;
 				long begin = System.currentTimeMillis();
 
-				while (count < target) {
+				while (count < target && output.program != null) {
 					if (reader.ready()) {
 						int to_read = length - count;
 						if (to_read > 32768) {
@@ -240,10 +254,7 @@ class inputPipeListener extends Thread
 							count += r;
 						}
 					} else {
-						//try {
-							sleep(1);
-						//} catch (Exception e) {
-						//}
+						sleep(1);
 					}
 					if (count > 0 && System.currentTimeMillis() - begin >= 33) {
 						break;
