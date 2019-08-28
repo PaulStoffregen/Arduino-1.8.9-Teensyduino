@@ -30,6 +30,7 @@ import javax.swing.text.Segment;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.event.UndoableEditListener;
+import javax.swing.SwingUtilities;
 
 /*
 FifoDocument replaces the Java's AbstractDocument with a very
@@ -173,7 +174,7 @@ public class FifoDocument implements Document
 // "head" and "tail" mean the physical locations of data inside the fixed
 // size char_buf and line_buf arrays.
 
-	public int charIndexToOffset(int index) {
+	public synchronized int charIndexToOffset(int index) {
 		int offset = index - char_tail - 1;
 		if (offset < 0) offset += char_size;
 		return offset;
@@ -217,6 +218,9 @@ public class FifoDocument implements Document
 		return available;
 	}
 	public synchronized void processAppended(int char_len) {
+		if (SwingUtilities.isEventDispatchThread() == false) {
+			System.err.println("FifoDocument processAppended called from wrong thread");
+		}
 		//System.out.println("processAppended, len = " + char_len);
 		int chead = char_head + 1;
 		if (chead >= char_size) chead = 0;
@@ -377,8 +381,19 @@ public class FifoDocument implements Document
 		line_buf[line_head].set(index, len);
 	}
 
-	public synchronized void remove(int offset, int len) throws BadLocationException {
+	public void remove(int offset, int len) throws BadLocationException {
 		println("Document: remove, offset=" + offset + ", len=" + len);
+		if (SwingUtilities.isEventDispatchThread()) {
+			deleteEverything();
+		} else {
+			SwingUtilities.invokeLater(new Runnable() {
+				public void run() {
+					deleteEverything();
+				}
+			});
+		}
+	}
+	private synchronized void deleteEverything() {
 		int char_len = char_head - char_tail;
 		if (char_len == 0) return; // already empty
 		if (char_len < 0) char_len += char_size;
