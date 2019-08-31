@@ -175,11 +175,13 @@ public class FifoDocument implements Document
 // size char_buf and line_buf arrays.
 
 	public synchronized int charIndexToOffset(int index) {
+		if (char_buf == null) return 0;
 		int offset = index - char_tail - 1;
 		if (offset < 0) offset += char_size;
 		return offset;
 	}
 	public synchronized int lineIndexToOffset(int index) {
+		if (char_buf == null) return 0;
 		int offset = index - line_tail - 1;
 		if (offset < 0) offset += line_size;
 		return offset;
@@ -382,6 +384,7 @@ public class FifoDocument implements Document
 	}
 
 	public void remove(int offset, int len) throws BadLocationException {
+		if (char_buf == null) return;
 		println("Document: remove, offset=" + offset + ", len=" + len);
 		if (SwingUtilities.isEventDispatchThread()) {
 			deleteEverything();
@@ -452,16 +455,19 @@ public class FifoDocument implements Document
 ////////////////////////////////////////////////////////
 
 	public synchronized int getElementCount() {
+		if (char_buf == null) return 0;
 		int len = line_head - line_tail;
 		if (len < 0) len += line_size;
 		return len;
 	}
 	public synchronized FifoElementLine getElement(int offset) {
+		if (char_buf == null) return new FifoElementLine(this, 0);
 		int index = offset + line_tail + 1;
 		if (index >= line_size) index -= line_size;
 		return line_buf[index];
 	}
 	public synchronized int getLineOffset(int char_offset) {
+		if (char_buf == null) return 0;
 		// search for the line which contains char_offset
 		if (char_offset <= 0) return 0;
 		return getLineOffset_BinarySearch(char_offset);
@@ -475,6 +481,7 @@ public class FifoDocument implements Document
 		*/
 	}
 	private int getLineOffset_LinearSearch(int char_offset) {
+		if (char_buf == null) return 0;
 		int line_count = getElementCount();
 		if (line_count < 1) return 0;
 		for(int line_offset = 0; line_offset < line_count; line_offset++) {
@@ -516,6 +523,7 @@ public class FifoDocument implements Document
 	}
 	public synchronized FifoElementLine[] getElementArray(int offset, int length) {
 		// TODO: should we pre-allocate and reuse this array to avoid garbage collection?
+		if (char_buf == null) return null;
 		FifoElementLine[] list = new FifoElementLine[length];
 		int index = offset + line_tail + 1;
 		if (index >= line_size) index -= line_size;
@@ -541,7 +549,7 @@ public class FifoDocument implements Document
 	public synchronized Position createPosition(int offset) throws BadLocationException {
 		println("Document: createPosition");
 		if (offset < 0) throw new BadLocationException("negative input not allowed", 0);
-		if (offset == 0) return startPosition;
+		if (offset == 0 || char_buf == null) return startPosition;
 		int length = getCharCount();
 		if (offset > length) throw new BadLocationException("beyond end", offset);
 		long pos = char_total - length + offset;

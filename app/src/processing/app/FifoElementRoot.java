@@ -37,11 +37,11 @@ public class FifoElementRoot implements Element
 	}
 	public int getElementIndex(int char_offset) {
 		int line_offset = doc.getLineOffset(char_offset);
-		FifoElementLine line = doc.getElement(line_offset);
+		/* FifoElementLine line = doc.getElement(line_offset);
 		doc.println("Root: getElementIndex, char offset = " + char_offset
 			+ " -> line offset = " + line_offset
 			+ " -> char offset = " + doc.charIndexToOffset(line.getIndex())
-			+ ", len = " + line.getLength());
+			+ ", len = " + line.getLength()); */
 		return line_offset;
 	}
 	public int getStartOffset() {
