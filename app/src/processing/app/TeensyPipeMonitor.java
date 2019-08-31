@@ -291,6 +291,7 @@ class inputPipeListener extends Thread
 			public void run() {
 				doc.setScrollingMode(auto_scroll);
 				doc.processAppended(chars_added);
+				output.textArea.invalidate();
 			}
 		};
 		int retry = 0;
