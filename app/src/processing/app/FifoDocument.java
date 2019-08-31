@@ -227,13 +227,32 @@ public class FifoDocument implements Document
 		int chead = char_head + 1;
 		if (chead >= char_size) chead = 0;
 
-		// count how many lines this new data adds, and record their offsets
+		// count how many newline chars, and record their offsets
 		int newline_count = 0;
 		for (int i=0; i < char_len; i++) {
 			if (char_buf[chead + i] == '\n') newline_offset[newline_count++] = i;
 		}
-		int line_len = newline_count;
-		if (last_line_incomplete && line_len > 0) line_len--;
+
+		// compute how many lines this will add to the line buffer
+		int line_len;
+		if (newline_count > 0 && newline_offset[newline_count - 1] == char_len - 1) {
+			// new data ends with a newline
+			if (last_line_incomplete) {
+				line_len = newline_count - 1;
+			} else {
+				line_len = newline_count;
+			}
+		} else {
+			// new data ends partial line (no newline at end)
+			if (last_line_incomplete) {
+				line_len = newline_count;
+			} else {
+				line_len = newline_count + 1;
+			}
+		}
+		println("processAppended, newline_count = " + newline_count
+			+ ", line_len = " + line_len);
+		println("  TEXT=\"" + new String(char_buf, chead, char_len) + "\"");
 
 		if (scrolling) {
 			// scrolling mode: delete old data as needed to stay under thresholds
@@ -331,10 +350,13 @@ public class FifoDocument implements Document
 
 		// add text to last line
 		int npos = 0;
+		int nindex = 0;
 		if (last_line_incomplete) {
 			if (newline_count > 0) {
 				npos = newline_offset[0] + 1;
 				line_buf[line_head].increaseLength(npos);
+				nindex = 1;
+				last_line_incomplete = false;
 			} else {
 				line_buf[line_head].increaseLength(char_len);
 			}
@@ -346,16 +368,20 @@ public class FifoDocument implements Document
 		// add lines to Element list
 		int lhead = line_head + 1;
 		if (lhead > line_size) lhead = 0;
-		for (int i = (last_line_incomplete ? 1 : 0); i < newline_count; i++) {
-			addLine(chead + npos, newline_offset[i] - npos + 1);
-			npos = newline_offset[i] + 1;
-		}
-		// add remaining text as last incomplete line
-		if (npos >= char_len) {
-			last_line_incomplete = false;
-		} else {
-			addLine(chead + npos, char_len - npos);
-			last_line_incomplete = true;
+		if (line_len > 0) {
+			//for (int i = (last_line_incomplete ? 1 : 0); i < newline_count; i++) {
+			while (nindex < newline_count) {
+				addLine(chead + npos, newline_offset[nindex] - npos + 1);
+				npos = newline_offset[nindex] + 1;
+				nindex++;
+			}
+			// add remaining text as last incomplete line
+			if (npos >= char_len) {
+				last_line_incomplete = false;
+			} else {
+				addLine(chead + npos, char_len - npos);
+				last_line_incomplete = true;
+			}
 		}
 
 		// transmit insert event
