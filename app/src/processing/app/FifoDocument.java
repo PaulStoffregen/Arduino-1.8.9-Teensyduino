@@ -443,7 +443,7 @@ public class FifoDocument implements Document
 	public synchronized void getText(int offset, int length, Segment txt) throws BadLocationException {
 		println("Document: getText, offset=" + offset + ", len=" + length);
 		if (length < 0 || offset < 0) {
-			System.out.println("FifoDocument.getText *****NEGATIVE NUMBER ERROR*****");
+			//System.out.println("FifoDocument.getText ****NEGATIVE NUMBER ERROR****");
 			throw new BadLocationException("negative input not allowed", 0);
 		}
 		int chartotallen = char_head - char_tail;
