@@ -310,7 +310,7 @@ class inputPipeListener extends Thread
 				SwingUtilities.invokeAndWait(do_update);
 				return;
 			} catch (InterruptedException e) {
-				if (output.debug) System.err.println("GUI update interrupted");
+				if (output.debug) System.out.println("GUI update interrupted");
 				if (output.program == null) return;
 				if (++retry > 4) return;
 			} catch (Exception e) {
