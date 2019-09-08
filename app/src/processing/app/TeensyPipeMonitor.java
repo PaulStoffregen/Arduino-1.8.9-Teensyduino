@@ -65,7 +65,7 @@ public class TeensyPipeMonitor extends AbstractTextMonitor {
 
 		onClearCommand(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				textArea.setText("");
+				clear();
 			}
 		});
 		onSendCommand(new ActionListener() {
@@ -97,6 +97,12 @@ public class TeensyPipeMonitor extends AbstractTextMonitor {
 				window_close();
 			}
 		});
+	}
+
+	private void clear() {
+		textArea.select(0, 0);
+		textArea.setCaretPosition(0);
+		textArea.setText("");
 	}
 
 	public void open() throws Exception {
@@ -134,7 +140,7 @@ public class TeensyPipeMonitor extends AbstractTextMonitor {
 		}
 		if (program != null) {
 			openport = new String(port);
-			textArea.setText("");
+			clear();
 			listener = new inputPipeListener();
 			listener.input = program.getInputStream();
 			listener.output = this;
@@ -168,7 +174,7 @@ public class TeensyPipeMonitor extends AbstractTextMonitor {
 
 	public void opened(String device, String usbtype) {
 		if (debug) System.out.println("opened, dev=" + device + ", name=" + usbtype);
-		textArea.setText("");
+		clear();
 		setTitle(device + " (" + teensyname + ") " + usbtype);
 		// setting these to null for system default
 		// gives a wrong gray background on Windows
