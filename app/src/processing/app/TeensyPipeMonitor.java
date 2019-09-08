@@ -42,8 +42,8 @@ import static processing.app.I18n.tr;
 
 public class TeensyPipeMonitor extends AbstractTextMonitor {
 
-	//private final boolean debug = false;
-	private final boolean debug = true;
+	//public final boolean debug = false;
+	public final boolean debug = true;
 	private String teensyname=null;
 	private String openport=null;
 	Process program=null;
@@ -170,8 +170,11 @@ public class TeensyPipeMonitor extends AbstractTextMonitor {
 		if (debug) System.out.println("opened, dev=" + device + ", name=" + usbtype);
 		textArea.setText("");
 		setTitle(device + " (" + teensyname + ") " + usbtype);
-		textArea.setForeground(null);
-		textArea.setBackground(null);
+		// setting these to null for system default
+		// gives a wrong gray background on Windows
+		// so assume black text on white background
+		textArea.setForeground(Color.BLACK);
+		textArea.setBackground(Color.WHITE);
 		enableWindow(true);
 	}
 
@@ -183,11 +186,11 @@ public class TeensyPipeMonitor extends AbstractTextMonitor {
 		//fg = ui.getColor("TextArea.inactiveForeground");
 		//if (fg == null) fg = ui.getColor("TextField.inactiveForeground");
 		//if (fg == null) fg = ui.getColor("TextPane.inactiveForeground");
-		if (fg == null) fg = new Color(80, 80, 80);
+		if (fg == null) fg = Color.BLACK;
 		//bg = ui.getColor("TextArea.inactiveBackground");
 		//if (bg == null) bg = ui.getColor("TextField.inactiveBackground");
 		//if (bg == null) bg = ui.getColor("TextPane.inactiveBackground");
-		if (bg == null) bg = new Color(248, 248, 248);
+		if (bg == null) bg = new Color(238, 238, 238);
 		enableWindow(false);
 		//System.out.println("disabled foreground = " + fg);
 		//System.out.println("disabled background = " + bg);
@@ -198,7 +201,7 @@ public class TeensyPipeMonitor extends AbstractTextMonitor {
 	}
 
 	public void window_close() {
-		System.out.println("window_close");
+		if (debug) System.out.println("window_close");
 		textArea.getFifo().free();
 		dispose();
 		((JFrame)SwingUtilities.getRoot(this)).dispose();
@@ -265,7 +268,7 @@ class inputPipeListener extends Thread
 				if (scroll) output.textArea.setCaretPosition(doc.getLength());
 			}
 		} catch (Exception e) {
-			System.out.println("inputPipeListener exception: " + e);
+			if (output.debug) System.out.println("inputPipeListener exception: " + e);
 			//e.printStackTrace();
 		} finally {
 			try {
@@ -273,10 +276,10 @@ class inputPipeListener extends Thread
 			} catch (Exception e) {
 				output.disconnect();
 			}
+			if (output.debug) System.out.println("inputPipeListener thread exit");
 			input = null;
 			output = null;
 			doc = null;
-			System.out.println("inputPipeListener thread exit");
 		}
 	}
 	private void update_gui(int chars_added, boolean auto_scroll) {
@@ -301,11 +304,11 @@ class inputPipeListener extends Thread
 				SwingUtilities.invokeAndWait(do_update);
 				return;
 			} catch (InterruptedException e) {
-				System.err.println("GUI update interrupted");
+				if (output.debug) System.err.println("GUI update interrupted");
 				if (output.program == null) return;
 				if (++retry > 4) return;
 			} catch (Exception e) {
-				System.err.println("ERROR: GUI update failed");
+				if (output.debug) System.err.println("ERROR: GUI update failed");
 				e.printStackTrace();
 				break;
 			}
@@ -339,9 +342,9 @@ class errorPipeListener extends Thread
 			}
 		} catch (Exception e) {
 		} finally {
+			if (output.debug) System.out.println("errorPipeListener thread exit");
 			input = null;
 			output = null;
-			System.out.println("errorPipeListener thread exit");
 		}
 	}
 
