@@ -42,8 +42,8 @@ import static processing.app.I18n.tr;
 
 public class TeensyPipeMonitor extends AbstractTextMonitor {
 
-	//public final boolean debug = false;
-	public final boolean debug = true;
+	public final boolean debug = false;
+	//public final boolean debug = true;
 	private String teensyname=null;
 	private String openport=null;
 	Process program=null;
